@@ -1,0 +1,15 @@
+{
+  "name": "maktaby-pro-web",
+  "private": true,
+  "version": "10.9.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "qa": "node QA_TASK_SESSION_LIFECYCLE_V10.cjs && node QA_CASE_TOOLS_REINTEGRATION_V10.cjs && node QA_SAFE_LAZY_EXTRACTION_10_9_1.cjs"
+  },
+  "devDependencies": {
+    "vite": "^6.4.1"
+  }
+}

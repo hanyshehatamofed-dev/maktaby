@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "مكتبي للمحاماة | MAKTABY PRO",
+  "short_name": "مكتبي",
+  "description": "نظام إدارة مكتب المحاماة",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#14283f",
+  "theme_color": "#14283f",
+  "icons": [
+    {"src": "/assets/pwa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/assets/pwa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

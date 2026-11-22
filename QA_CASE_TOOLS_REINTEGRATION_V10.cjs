@@ -1,0 +1,31 @@
+const fs=require('fs'),path=require('path');
+const root=path.join(__dirname,'src');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const renderer=fs.readFileSync(path.join(root,'js/renderer.10_9_1_case_tools04.js'),'utf8');
+const timeline=fs.readFileSync(path.join(root,'js/maktaby-case-timeline.js.679f26240729.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'css/case-timeline.51d4930f66e4.css'),'utf8');
+const appCss=fs.readFileSync(path.join(root,'css/app.10_9_1_case_tools04.css'),'utf8');
+const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+let passed=0,total=0;function check(name,fn){total++;let ok=false;try{ok=!!fn()}catch(e){}if(ok)passed++;console.log((ok?'PASS ':'FAIL ')+name)}
+check('product version remains 10.9.1',()=>html.includes('10.9.1'));
+check('timeline module is lazy-loaded from the current index',()=>html.includes('js/maktaby-case-timeline.js.679f26240729.js')&&html.includes('css/case-timeline.51d4930f66e4.css'));
+check('timeline entry point exists for active and archived cases',()=>renderer.includes('openCaseTimeline109(${selectedIndex})')&&renderer.includes('openCaseTimeline109(${i},true)'));
+check('timeline still renders announcements, session history, documents, tasks, judgment and execution',()=>['announcementRows','c.history','sessionDocuments','clientDocuments','taskRows','judgmentSessionDate','executionDate'].every(x=>timeline.includes(x)));
+check('legacy announcement matching requires unique safe match',()=>timeline.includes('candidates.length===1')&&timeline.includes('present-but-mismatching stable reference'));
+check('session documents and announcements shortcut remains in compact case details',()=>renderer.includes('openSessionDocumentsV104(${selectedIndex})')&&renderer.includes('المحررات والإعلانات'));
+check('session document printing uses same-page iframe rather than popup',()=>renderer.includes('maktabySessionDocPrintFrame')&&!renderer.includes("const w=window.open('','_blank');if(!w){alert('تم حفظ المحرر"));
+check('WhatsApp shortcut is available in compact case details',()=>renderer.includes('sendCaseWhatsAppV10(${selectedIndex})')&&renderer.includes('واتساب الموكل'));
+check('WhatsApp resolves a phone from any linked client',()=>renderer.includes('names.some(n=>normName(n)===normName(x.name))')&&renderer.includes('wa.me/'));
+check('announcement lifecycle selector remains available in selected announcement details',()=>renderer.includes('setAnnouncementLifecycleV10(${idx},this.value)')&&renderer.includes('تحديث حالة الإعلان'));
+check('announcements match reference layout with compact internal-scroll table and details below',()=>renderer.includes('v109-ad-table-scroll')&&renderer.includes('v109-ad-detail')&&renderer.includes('بيان الإعلان المحدد')&&appCss.includes('.v109-ad-table-scroll{height:clamp(260px,42vh,390px)')&&renderer.includes('window.announcementSelectedIndex=${index}'));
+check('announcement table shows selected row and colored lifecycle badges',()=>renderer.includes('v109-ad-badge')&&renderer.includes('selected'));
+check('announcement receipt confirmation archives only after confirmation',()=>renderer.includes("status==='تم الاستلام'&&!confirm(")&&renderer.includes('announcementArchive.unshift'));
+check('timeline styles are available',()=>css.includes('#mkCaseTimeline109')&&css.includes('.mktl-event'));
+check('cache revision changed to refresh grouped-by-court announcement view',()=>sw.includes('10.9.1-refactor-stage3-store-session-tools12'));
+check('announcements table exposes court name in its own column',()=>renderer.includes('<th>المحكمة</th>') && renderer.includes('v109-ad-court-cell') && renderer.includes('r.court||'));
+check('announcements are sorted and visually grouped by court',()=>renderer.includes('v109-ad-court-group')&&renderer.includes('courtOrder'));
+check('reference layout places selected case details below the internally scrollable sessions table',()=>renderer.includes('class="v109-case-layout"')&&renderer.includes('v109-detail-slot')&&appCss.includes('.v109-case-layout .v109-table-panel>div:not(.v109-table-title)')&&appCss.includes('height:clamp(190px,29vh,292px)'));
+check('compact list shows core fields without oversized inline editors',()=>renderer.includes('v109-table-panel')&&renderer.includes('الموكل / الخصم')&&renderer.includes('تاريخ الجلسة')&&!renderer.includes('session-transfer-first'));
+check('selected case detail preserves decision, adjournment and rollover fields',()=>renderer.includes('decision_${selectedIndex}')&&renderer.includes('reason_${selectedIndex}')&&renderer.includes('next_${selectedIndex}')&&renderer.includes('saveSessionUpdate(${selectedIndex})'));
+console.log(JSON.stringify({passed,total},null,2));if(passed!==total)process.exit(1);
+

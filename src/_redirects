@@ -1,0 +1,10 @@
+# SPA fallback for application routes; keep static files and API paths untouched.
+/app/*  /index.html  200
+/dashboard  /index.html  200
+/clients  /index.html  200
+/cases  /index.html  200
+/tasks  /index.html  200
+/accounts  /index.html  200
+/archive  /index.html  200
+/track  /track.html  200
+/track/*  /track.html  200
