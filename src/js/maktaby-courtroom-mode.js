@@ -21,7 +21,7 @@
  async function startVoice(index,button){
   const row=((typeof db!=='undefined'?db.cases:[])||[])[index];if(!row)return alert('تعذر العثور على القضية المحددة.');
   try{
-   if(!window.MAKTABY_VOICE_ACTION_109){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='js/maktaby-voice-case-notes.2281a4bc4614.js';s.onload=resolve;s.onerror=()=>reject(new Error('تعذر تحميل وحدة السكرتير الصوتي'));document.head.appendChild(s);});}
+   if(!window.MAKTABY_VOICE_ACTION_109){await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=window.MAKTABY_ASSET_URL?window.MAKTABY_ASSET_URL('js/maktaby-voice-case-notes.js'):'js/maktaby-voice-case-notes.js';s.onload=resolve;s.onerror=()=>reject(new Error('تعذر تحميل وحدة السكرتير الصوتي'));document.head.appendChild(s);});}
    const engine=window.MAKTABY_VOICE_ACTION_109;
    if(!engine||typeof engine.start!=='function')throw new Error('محرك الأوامر الصوتية غير متاح');
    engine.start(index,button);

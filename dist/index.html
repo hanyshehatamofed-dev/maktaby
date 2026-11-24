@@ -8,14 +8,14 @@
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net"/>
 <link rel="dns-prefetch" href="https://unpkg.com"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
 <meta name="theme-color" content="#14283f"/>
-<link rel="manifest" href="/assets/manifest-c0Ak2Q6G.json"/>
-<link rel="apple-touch-icon" href="/assets/pwa-icon-192-Cn8-U2m0.png"/>
+<link rel="manifest" href="/manifest.json"/>
+<link rel="apple-touch-icon" href="/assets/pwa-icon-192.png"/>
 <meta name="maktaby-product" content="MAKTABY PRO 10"/>
 <meta name="maktaby-version" content="10.9.1"/>
-<meta name="maktaby-build-id" content="MAKTABY_PRO_10_9_1_ANNOUNCEMENTS_GROUPED_BY_COURT_20261122"/>
 <title>مكتبي للمحاماة | MAKTABY PRO 10</title>
 
-  <link rel="stylesheet" crossorigin href="/assets/app-IBW8oWWp.css">
+  <script type="module" crossorigin src="/assets/app-CsLhiiIK.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/app-Ddmh3qyK.css">
 </head>
 <body>
 <div id="loginScreen" style="position:fixed;inset:0;background:#14283f;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -27,7 +27,7 @@
 <div class="notice" style="margin-top:16px;margin-bottom:0">تسجيل الدخول يتم بحساب المكتب المعتمد عبر Supabase. لا توجد كلمات مرور تجريبية داخل البرنامج. لا تعتمد على ظهور حالة الاتصال وحدها كدليل على اكتمال النسخ الاحتياطي؛ راجع نجاح المزامنة بعد العمليات المهمة.</div>
 </div>
 </div>
-<div aria-label="نظام مكتبي للمحاماة" class="layout" role="application"><aside aria-label="القائمة الرئيسية" class="side"><div class="brand"><img alt="شعار مكتبي للمحاماة" src="/assets/maktaby-approved-logo.e64ef0e452-0QRPYYJt.webp"/><div>مكتبي للمحاماة<small>مكتب هاني شحاتة</small></div></div><nav aria-label="التنقل بين أقسام المكتب" class="nav" id="nav"><button class="active" data-page="dashboard">الرئيسية</button><button data-page="clients">العملاء</button><button data-page="cases">القضايا والجلسات</button><button data-page="announcements">الإعلانات والإجراءات</button><button data-page="enumerations" id="enumerationsNav" style="display:none">أرقام الحصر</button><button data-page="tasks">المهام الإدارية</button><button data-page="accounts">المصروفات</button><button data-page="officeAccounts" id="officeAccountsNav" style="display:none">الحسابات</button><button data-page="income" style="display:none">الوارد</button><button data-page="employees">الرواتب والبونص</button><button data-page="archive">الأرشيف</button><button data-page="approvals" id="approvalsNav" style="display:none">طلبات الاعتماد <span class="pill late" id="approvalCount" style="display:none;margin-right:6px">0</span></button></nav></aside><main class="main" role="main"><header class="top reference-topbar"><div class="top-user"><div class="avatar"><img src="/assets/hany-profile-photo.8da698e249-CnEjKwQh.webp" alt="صورة هاني شحاتة" loading="eager" decoding="async"></div><div><b>أهلاً وسهلاً</b><strong id="topUserName">Hany Shehata</strong><small>المدير الرئيسي</small></div><span class="top-divider"></span><button class="notification-btn" type="button" aria-label="فتح مركز التنبيهات" title="مركز التنبيهات" aria-controls="maktabyNotificationDrawer" aria-expanded="false">🔔<span id="refNotificationCount" class="ref-notification-count" style="display:none"></span></button><div class="top-date"><b id="topWeekday">—</b><strong id="topFullDate">—</strong></div></div><div class="top-brand"><strong>MAKTABY <em>PRO</em> <i>10</i></strong><small>إدارة ذكية .. لمكتب قانوني أكثر كفاءة</small></div><div class="top-tools"><strong id="topTitle">الرئيسية</strong><button class="btn light" id="backupBtn" onclick="exportBackup()" style="display:none">نسخة احتياطية</button><button class="btn light" id="importBtn" onclick="document.getElementById('dataImport').click()" style="display:none">استيراد نسخة بيانات JSON</button><input accept="application/json,.json" id="dataImport" onchange="importOfficeData(event)" style="display:none" type="file"/><span class="badge" id="cloudStatusHeader" style="display:none">غير متصل</span><button class="btn light" id="syncBtn" onclick="saveCloudState().then(()=&gt;setCloudStatus('تمت المزامنة')).catch(e=&gt;alert(e.message))" style="display:none">مزامنة الآن</button><span class="badge" id="userBadge">MAKTABY PRO 10</span></div></header><div aria-busy="false" aria-live="polite" class="content" id="app"></div><button id="mkCourtFab" type="button" aria-label="فتح وضع المحكمة" title="وضع المحكمة" style="position:fixed;z-index:10020;left:16px;bottom:18px;border:0;border-radius:999px;padding:15px 19px;background:#17324f;color:#fff;font-weight:700;font-size:15px;box-shadow:0 8px 28px #10253b55;cursor:pointer">⚖ وضع المحكمة</button><footer class="app-footer"><span class="footer-connection"><i></i> متصل بـ <b id="cloudStatus">غير متصل</b><strong>ϟ</strong></span><b class="footer-version">MAKTABY PRO 10 — Version 10.9.1</b><span class="footer-tagline">أفهم قانون .. أعرف قانون</span></footer></main></div>
+<div aria-label="نظام مكتبي للمحاماة" class="layout" role="application"><aside aria-label="القائمة الرئيسية" class="side"><div class="brand"><img alt="شعار مكتبي للمحاماة" src="/assets/maktaby-approved-logo.e64ef0e452-0QRPYYJt.webp"/><div>مكتبي للمحاماة<small>مكتب هاني شحاتة</small></div></div><nav aria-label="التنقل بين أقسام المكتب" class="nav" id="nav"><button class="active" data-page="dashboard">الرئيسية</button><button data-page="clients">العملاء</button><button data-page="cases">القضايا والجلسات</button><button data-page="announcements">الإعلانات والإجراءات</button><button data-page="enumerations" id="enumerationsNav" style="display:none">أرقام الحصر</button><button data-page="tasks">المهام الإدارية</button><button data-page="accounts">المصروفات</button><button data-page="officeAccounts" id="officeAccountsNav" style="display:none">الحسابات</button><button data-page="income" style="display:none">الوارد</button><button data-page="employees">الرواتب والبونص</button><button data-page="archive">الأرشيف</button><button data-page="approvals" id="approvalsNav" style="display:none">طلبات الاعتماد <span class="pill late" id="approvalCount" style="display:none;margin-right:6px">0</span></button></nav></aside><main class="main" role="main"><header class="top reference-topbar"><div class="top-user"><div class="avatar"><img src="/assets/hany-profile-photo.8da698e249-CnEjKwQh.webp" alt="صورة هاني شحاتة" loading="eager" decoding="async"></div><div><b>أهلاً وسهلاً</b><strong id="topUserName">Hany Shehata</strong><small>المدير الرئيسي</small></div><span class="top-divider"></span><button class="notification-btn" type="button" aria-label="فتح مركز التنبيهات" title="مركز التنبيهات" aria-controls="maktabyNotificationDrawer" aria-expanded="false">🔔<span id="refNotificationCount" class="ref-notification-count" style="display:none"></span></button><div class="top-date"><b id="topWeekday">—</b><strong id="topFullDate">—</strong></div></div><div class="top-brand"><strong>MAKTABY <em>PRO</em> <i>10</i></strong><small>إدارة ذكية .. لمكتب قانوني أكثر كفاءة</small></div><div class="top-tools"><strong id="topTitle">الرئيسية</strong><button class="btn light" id="backupBtn" onclick="exportBackup()" style="display:none">نسخة احتياطية</button><button class="btn light" id="recoveryHealthBtn" onclick="showMaktabyStorageDiagnostics().catch(e=&gt;alert(e.message))" style="display:none">فحص حماية البيانات</button><button class="btn light" id="recoveryBackupBtn" onclick="downloadMaktabyRecoveryBackup().then(s=&gt;alert(s.verified?'تم التحقق من نسخة الاسترداد وتنزيلها بنجاح.':'تم تنزيل النسخة مع تنبيه: تعذر التحقق التشفيري الكامل.')).catch(e=&gt;alert(e.message))" style="display:none">نسخة استرداد محلية</button><button class="btn light" id="importBtn" onclick="document.getElementById('dataImport').click()" style="display:none">استيراد نسخة بيانات JSON</button><input accept="application/json,.json" id="dataImport" onchange="importOfficeData(event)" style="display:none" type="file"/><span class="badge" id="cloudStatusHeader" style="display:none">غير متصل</span><button class="btn light" id="syncBtn" onclick="saveCloudState().then(()=&gt;setCloudStatus('تمت المزامنة')).catch(e=&gt;alert(e.message))" style="display:none">مزامنة الآن</button><span class="badge" id="userBadge">MAKTABY PRO 10</span></div></header><div aria-busy="false" aria-live="polite" class="content" id="app"></div><button id="mkCourtFab" type="button" aria-label="فتح وضع المحكمة" title="وضع المحكمة" style="position:fixed;z-index:10020;left:16px;bottom:18px;border:0;border-radius:999px;padding:15px 19px;background:#17324f;color:#fff;font-weight:700;font-size:15px;box-shadow:0 8px 28px #10253b55;cursor:pointer">⚖ وضع المحكمة</button><footer class="app-footer"><span class="footer-connection"><i></i> متصل بـ <b id="cloudStatus">غير متصل</b><strong>ϟ</strong></span><b class="footer-version">MAKTABY PRO 10 — Version 10.9.1</b><span class="footer-tagline">أفهم قانون .. أعرف قانون</span></footer></main></div>
 <div class="modal" id="modal"><div class="dialog"><div class="dialoghead"><h2 id="modalTitle">إضافة</h2><button class="btn light" onclick="closeModal()">إغلاق</button></div><form id="form"><div class="formgrid" id="formFields"></div><div class="actions" style="margin-top:18px"><button class="btn goldbtn" type="submit">حفظ</button><button class="btn light" onclick="closeModal()" type="button">إلغاء</button></div></form></div></div>
 
 
@@ -43,119 +43,4 @@
 
 <script>
 (function(){const d=new Date();const w=document.getElementById('topWeekday'),f=document.getElementById('topFullDate');if(w)w.textContent=d.toLocaleDateString('ar-EG',{weekday:'long'});if(f)f.textContent=d.toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'});})();
-</script>
-<script>
-/* MAKTABY 10.9.1 boot: defer optional UI modules until first use. */
-(function(){
-  'use strict';
-  const errorBox=document.getElementById('loginError');
-  const supabaseSources=['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2','https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'];
-  const loaded=new Map();
-  function loadScript(src){
-    if(loaded.has(src)) return loaded.get(src);
-    const promise=new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=src;el.async=true;el.onload=()=>resolve(el);el.onerror=()=>{loaded.delete(src);reject(new Error('Failed to load '+src));};document.head.appendChild(el);});
-    loaded.set(src,promise); return promise;
-  }
-  function loadStyle(src){
-    if(loaded.has(src)) return loaded.get(src);
-    const promise=new Promise((resolve,reject)=>{const el=document.createElement('link');el.rel='stylesheet';el.href=src;el.onload=()=>resolve(el);el.onerror=()=>{loaded.delete(src);reject(new Error('Failed to load '+src));};document.head.appendChild(el);});
-    loaded.set(src,promise); return promise;
-  }
-  function loadSupabase(i=0){
-    if(i>=supabaseSources.length) return Promise.reject(new Error('Supabase unavailable'));
-    return loadScript(supabaseSources[i]).then(()=>{if(window.supabase&&typeof window.supabase.createClient==='function')return;throw new Error('Invalid Supabase bundle');}).catch(()=>loadSupabase(i+1));
-  }
-  const lazyModules=new Set(['js/maktaby-case-timeline.js.679f26240729.js','js/maktaby-courtroom-mode.f5a371f3cfdc.js','js/maktaby-voice-case-notes.2281a4bc4614.js','js/maktaby-command-palette.js.717053b462bc.js','js/maktaby-smart-autofill.js.370b09e0c9a7.js','js/maktaby-legal-calculator.10_9_1.js']);
-  function optional(src,label){
-    // These optional bundles are classic IIFEs, not ES modules. Load them as
-    // script tags so they also work when the package is opened from file://
-    // during local preview; dynamic import is blocked by browser file-origin CORS.
-    if(lazyModules.has(src)){
-      return loadScript(src).catch(e=>{console.warn('MAKTABY '+label+' unavailable:',e);return null;});
-    }
-    return loadScript(src).catch(e=>{console.warn('MAKTABY '+label+' unavailable:',e);return null;});
-  }
-  let caseTimelineLoadPromise=null;
-  window.openCaseTimeline109=function(index,archive){
-    const openTimeline=()=>{
-      const api=window.MAKTABY_CASE_TIMELINE_109;
-      if(api&&typeof api.open==='function') return api.open(index,!!archive);
-      throw new Error('Timeline module loaded without its public API');
-    };
-    if(window.MAKTABY_CASE_TIMELINE_109?.open) return Promise.resolve().then(openTimeline);
-    if(!caseTimelineLoadPromise){
-      caseTimelineLoadPromise=Promise.all([
-        loadStyle('css/case-timeline.51d4930f66e4.css'),
-        optional('js/maktaby-case-timeline.js.679f26240729.js','case timeline')
-      ]).then(()=>{
-        if(!window.MAKTABY_CASE_TIMELINE_109?.open) throw new Error('Timeline API unavailable after loading');
-      }).catch(error=>{caseTimelineLoadPromise=null;throw error;});
-    }
-    return caseTimelineLoadPromise.then(openTimeline).catch(error=>{
-      console.error('Timeline could not be opened:',error);
-      alert('تعذر فتح الخط الزمني. حدّث الصفحة تحديثًا كاملاً، وإذا استمرت المشكلة أرسل لنا رسالة الخطأ.');
-    });
-  };
-  function startCore(){
-    return loadScript('js/maktaby-store.js').then(()=>loadScript('js/renderer.10_9_1_case_tools04.js')).then(()=>{
-      // Optional UI features are fetched only on first use.
-      let paletteLoading=false;
-      document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'&&!window.MAKTABY_COMMAND_PALETTE&&!paletteLoading){e.preventDefault();paletteLoading=true;optional('js/maktaby-command-palette.js.717053b462bc.js','command palette').then(()=>{paletteLoading=false;window.MAKTABY_COMMAND_PALETTE?.open();});}},true);
-      let smartFillLoading=false;
-      const loadSmartFill=()=>{if(smartFillLoading||window.__MAKTABY_SMART_AUTOFILL_109)return;smartFillLoading=true;optional('js/maktaby-smart-autofill.js.370b09e0c9a7.js','smart auto-fill').finally(()=>{smartFillLoading=false;});};
-      // Forms may be opened by buttons or inline actions; defer the helper until the first form interaction.
-      document.addEventListener('click',e=>{if(e.target.closest('button,[role=button]')){const b=e.target.closest('button,[role=button]');if(b.matches('[onclick*="openForm"],#form button,[data-open-form]'))loadSmartFill();}},true);
-      const modal=document.getElementById('modal');
-      if(modal&&typeof MutationObserver!=='undefined'){let formSeen=false;new MutationObserver(()=>{if(!formSeen&&modal.querySelector('#formFields input, #formFields textarea')){formSeen=true;loadSmartFill();}}).observe(modal,{subtree:true,childList:true});}
-      // Voice tools patch rendering, so load only when the cases area is first requested.
-      // Voice module is fetched only after the courtroom microphone is requested.
-      // Courtroom mode is imported only when its visible entry point is clicked.
-      let courtroomPromise=null;
-      window.openCourtroomMode109=function(){
-        if(!courtroomPromise) courtroomPromise=optional('js/maktaby-courtroom-mode.f5a371f3cfdc.js','courtroom mode');
-        return courtroomPromise.then(()=>{
-          const mode=window.MAKTABY_COURTROOM_MODE;
-          if(mode&&typeof mode.open==='function') mode.open();
-          else throw new Error('Courtroom module did not initialize');
-        }).catch(err=>{courtroomPromise=null;console.error('Courtroom mode failed to load:',err);alert('تعذر تحميل وضع المحكمة. حدّث الصفحة وحاول مرة أخرى.');});
-      };
-      const courtButton=document.getElementById('mkCourtFab');
-      if(courtButton) courtButton.addEventListener('click',()=>window.openCourtroomMode109());
-      // Legal fee calculator is loaded only when its navigation entry is requested.
-      let legalCalcPromise=null;
-      const nav=document.getElementById('nav');
-      if(nav&&!nav.querySelector('[data-page="legalCalculator"]')){
-        const legalButton=document.createElement('button');
-        legalButton.type='button';legalButton.dataset.page='legalCalculator';
-        legalButton.textContent='حاسبة الرسوم والفوائد ⚖';
-        legalButton.addEventListener('click',()=>{
-          if(legalButton.dataset.loading==='1')return;
-          legalButton.dataset.loading='1';
-          if(!legalCalcPromise)legalCalcPromise=optional('js/maktaby-legal-calculator.10_9_1.js','legal calculator');
-          legalCalcPromise.then(()=>{
-            if(!window.__MAKTABY_EG_LEGAL_CALC_1091)throw new Error('Legal calculator module did not initialize');
-            page='legalCalculator';render();
-          }).catch(error=>{legalCalcPromise=null;console.error('Legal calculator failed to load:',error);alert('تعذر تحميل حاسبة الرسوم. حدّث الصفحة وحاول مرة أخرى.');})
-            .finally(()=>{delete legalButton.dataset.loading;});
-        });
-        nav.appendChild(legalButton);
-      }
-    });
-  }
-  loadSupabase().then(()=>{
-    return loadScript('js/maktaby-offline-sync.js.72e9d5f62dc9.js').catch(e=>{console.warn('MAKTABY offline journal unavailable; continuing online:',e);});
-  }).then(()=>Promise.resolve(window.MAKTABY_OFFLINE?.ready).catch(e=>console.warn('Offline initialization skipped:',e))).then(startCore).catch(e=>{
-    console.error('MAKTABY startup blocked:',e);
-    if(errorBox) errorBox.textContent='تعذر تحميل مكتبة الاتصال أو ملفات البرنامج. تحقق من الاتصال واكتمال فك ضغط الحزمة ثم أعد تحميل الصفحة.';
-  });
-})();
-</script>
-<script>
-/* Register shell-only PWA support; all live data/auth remain online. */
-if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js', {scope: '/'})
-      .catch(function (error) { console.warn('MAKTABY PWA registration skipped:', error); });
-  });
-}
 </script></body></html>

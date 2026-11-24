@@ -7,9 +7,10 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "qa": "node QA_TASK_SESSION_LIFECYCLE_V10.cjs && node QA_CASE_TOOLS_REINTEGRATION_V10.cjs && node QA_SAFE_LAZY_EXTRACTION_10_9_1.cjs"
+    "qa": "node tests/QA_TASK_SESSION_LIFECYCLE_V10.cjs && node tests/QA_CASE_TOOLS_REINTEGRATION_V10.cjs && node tests/QA_SAFE_LAZY_EXTRACTION_10_9_1.cjs && node tests/QA_SYNC_SAFETY_10_9_1.cjs && node tests/QA_RECOVERY_BATCH_10_9_1.cjs && node tests/QA_DASHBOARD_WEEKLY_OVERVIEW_10_9_1.cjs && node tests/QA_BUILD_ARCHITECTURE.cjs && node tests/QA_LAZY_BUSINESS_FEATURES_10_9_1.cjs && node tests/QA_TASK_WORKSPACE_UI_10_9_1.cjs"
   },
   "devDependencies": {
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "esbuild": "^0.25.0"
   }
 }

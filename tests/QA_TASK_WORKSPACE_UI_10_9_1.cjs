@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('fs'),path=require('path');
+const root=path.resolve(__dirname,'..');
+const renderer=fs.readFileSync(path.join(root,'src/js/renderer.js'),'utf8');
+const css=fs.readFileSync(path.join(root,'src/css/app.css'),'utf8');
+const checks=[];const check=(name,fn)=>{try{if(!fn())throw new Error('assertion failed');checks.push({name,ok:true});}catch(e){checks.push({name,ok:false,error:e.message});}};
+const block=renderer.slice(renderer.indexOf("if(page==='tasks'){"),renderer.indexOf("if(page==='accounts')"));
+check('task workspace redesign is present',()=>block.includes('task-workspace')&&block.includes('task-hero')&&block.includes('task-list-panel'));
+check('task KPIs use existing task status semantics',()=>block.includes('taskStatusIsCompletedV10(x.status)')&&block.includes('taskOverdue')&&block.includes('taskDone'));
+check('court folders and task search remain available',()=>block.includes('task-folder')&&block.includes('window.taskSearch')&&block.includes('scheduleSearchRender()'));
+check('task creation and court-specific creation handlers remain wired',()=>block.includes("openForm(\\'task\\')")&&block.includes('addTaskForCourtV8'));
+check('existing edit and completion approval handlers remain wired',()=>block.includes('editTask(')&&block.includes('completeAdminTaskV745(')&&block.includes('requestTaskCompletionV104('));
+check('history and completion details remain visible',()=>block.includes('x.history.slice().reverse()')&&block.includes('x.completionNote'));
+check('responsive task workspace styles are present',()=>css.includes('.task-kpis')&&css.includes('.task-folder')&&css.includes('@media(max-width:620px)'));
+const failed=checks.filter(x=>!x.ok);console.log(JSON.stringify({passed:checks.length-failed.length,total:checks.length,checks},null,2));if(failed.length)process.exit(1);
