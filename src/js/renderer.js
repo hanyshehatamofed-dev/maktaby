@@ -97,7 +97,7 @@ localStorage.setItem(STORAGE_KEY,JSON.stringify(db));let cloudStateVersions={off
 async function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(db));render();if(!currentUser||!canManageOffice())return;try{await saveCloudState({persistLocal:false});setCloudStatus('تم الحفظ والمزامنة');}catch(e){setCloudStatus('تعذر المزامنة: '+(e.message||e));console.error(e);alert('تم الحفظ محليًا، لكن تعذرت المزامنة مع الإنترنت: '+(e.message||e));}}
 function setCloudStatus(t){let el=document.getElementById('cloudStatus');if(el)el.textContent=t;}
 function sharedPayload(){return {clients:db.clients||[],cases:db.cases||[],announcements:db.announcements||[],tasks:db.tasks||[],taskArchive:db.taskArchive||[],achievements:db.achievements||[],announcementArchive:db.announcementArchive||[],caseArchive:db.caseArchive||[],clientArchive:db.clientArchive||[],poaArchive:db.poaArchive||[],enumerations:db.enumerations||[],meta:db.meta||{},powerOfAttorneys:db.powerOfAttorneys||[],appealRules:db.appealRules||[],appealCalculations:db.appealCalculations||[],legalHolidays:db.legalHolidays||[]};}
-function employeePayload(){return {clients:(db.clients||[]).map(c=>({name:c.name,phone:c.phone||'',phone2:c.phone2||'',powerOfAttorneyNo:c.powerOfAttorneyNo||'',subject:c.subject||'',fees:c.fees||'',notes:c.notes||''})),cases:(db.cases||[]).filter(c=>!c.archived).map(c=>({...c,caseId:c.caseId||c.id,result:c.result||c.decision||'',history:Array.isArray(c.history)?c.history:[]})),announcements:(db.announcements||[]).filter(a=>!a.archived).map(a=>({client:a.client,number:a.number,court:a.court,bailiff:a.bailiff,deliveryDate:a.deliveryDate,receivedDate:'',status:a.status||'قيد الإعلان',kind:a.kind,session:a.session})),tasks:db.tasks||[],taskArchive:db.taskArchive||[],achievements:db.achievements||[],enumerations:db.enumerations||[],meta:db.meta||{},powerOfAttorneys:db.powerOfAttorneys||[],appealRules:db.appealRules||[],appealCalculations:db.appealCalculations||[],legalHolidays:db.legalHolidays||[]};}
+function employeePayload(){return {clients:(db.clients||[]).map(c=>({name:c.name,phone:c.phone||'',phone2:c.phone2||'',powerOfAttorneyNo:c.powerOfAttorneyNo||'',subject:c.subject||'',fees:'',notes:c.notes||''})),cases:(db.cases||[]).filter(c=>!c.archived).map(c=>({...c,caseId:c.caseId||c.id,result:c.result||c.decision||'',history:Array.isArray(c.history)?c.history:[]})),announcements:(db.announcements||[]).filter(a=>!a.archived).map(a=>({client:a.client,number:a.number,court:a.court,bailiff:a.bailiff,deliveryDate:a.deliveryDate,receivedDate:'',status:a.status||'قيد الإعلان',kind:a.kind,session:a.session})),tasks:db.tasks||[],taskArchive:db.taskArchive||[],achievements:db.achievements||[],enumerations:db.enumerations||[],meta:db.meta||{},powerOfAttorneys:db.powerOfAttorneys||[],appealRules:db.appealRules||[],appealCalculations:db.appealCalculations||[],legalHolidays:db.legalHolidays||[]};}
 // V9.5.0: Preserve financial rows and honor local updates/tombstones across cloud merges.
 function financialRowFingerprint(row){
  if(row&&row.id!==undefined&&row.id!==null&&String(row.id)!=='')return 'id:'+String(row.id);
@@ -860,7 +860,7 @@ async function reviewEmployeeExpenseV54(expenseId,approve){
     const norm=v=>String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ar');
     const isGeneralExpense=norm(expense.client_name)==='مصروفات عامة';
     if(!isGeneralExpense){
-      let fq=sb.from('fee_files').select('id,title,case_number,client_name,client_id,case_id,agreed_amount').eq('status','open').order('created_at',{ascending:false});
+      let fq=(isAdmin()?sb.from('fee_files'):sb.from('fee_files_lookup')).select(isAdmin()?'id,title,case_number,client_name,client_id,case_id,agreed_amount':'id,title,case_number,client_name,client_id,case_id').eq('status','open').order('created_at',{ascending:false});
       if(expense.client_id)fq=fq.eq('client_id',expense.client_id);
       const {data:files,error:fileError}=await fq;
       if(fileError)throw fileError;
@@ -883,7 +883,7 @@ async function reviewEmployeeExpenseV54(expenseId,approve){
       }
       let selected=eligible.find(f=>String(f.id)===String(expense.fee_file_id));
       if(!selected){
-        const choices=eligible.map((f,i)=>`${i+1}) ${f.title||'اتفاق بدون عنوان'} — ${f.case_number||'بدون رقم قضية'} — ${f.agreed_amount} ج`).join('\n');
+        const choices=eligible.map((f,i)=>`${i+1}) ${f.title||'اتفاق بدون عنوان'} — ${f.case_number||'بدون رقم قضية'}${isAdmin()?' — '+f.agreed_amount+' ج':''}`).join('\n');
         const answer=prompt('اختر اتفاق الأتعاب الذي سيُرحّل إليه المصروف بكتابة رقمه:\n'+choices,'1');
         if(answer===null)return;
         const n=Number(answer);if(!Number.isInteger(n)||n<1||n>eligible.length)throw new Error('رقم الاتفاق المختار غير صحيح.');
