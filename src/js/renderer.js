@@ -2244,6 +2244,55 @@ window.purgeArchivedRecordV87=async(type,i)=>{if(!canManageOffice())return;const
    box.innerHTML='<div style="overflow:auto"><table><thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>القسم</th><th>السجل</th><th>التفاصيل</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+escA(new Date(x.created_at).toLocaleString('ar-EG'))+'</td><td>'+escA(x.actor_name||'—')+'</td><td>'+escA(x.action||'—')+'</td><td>'+escA(x.entity_type||'—')+'</td><td>'+escA(x.entity_label||'—')+'</td><td style="white-space:normal;max-width:360px">'+escA(JSON.stringify(x.details||{}))+'</td></tr>').join('')+'</tbody></table></div>';
  }
  document.addEventListener('click',e=>{const b=e.target.closest('#nav [data-page="auditTrail"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();showAuditPage();},true);
+ // Staff admin page (admin only): activate/deactivate employees and set roles.
+ // New sign-ups are created inactive by the database, so someone must be able to activate them from the app.
+ const nav2=document.getElementById('nav');
+ if(nav2&&!nav2.querySelector('[data-page="staffAdmin"]')){const b=document.createElement('button');b.type='button';b.dataset.page='staffAdmin';b.textContent='الموظفون والصلاحيات';b.style.display='none';nav2.appendChild(b);}
+ const staffNavTimer=setInterval(()=>{if(currentUser){clearInterval(staffNavTimer);const b=document.querySelector('#nav [data-page="staffAdmin"]');if(b)b.style.display=isAdmin()?'':'none';}},500);
+ const STAFF_ROLES=[['admin','مدير'],['office_manager','مديرة مكتب'],['employee','موظف']];
+ async function staffAudit(action,label,details){try{await sb.from('office_audit_logs').insert({actor_id:currentUser?.id,actor_name:currentUser?.name||'مدير المكتب',action,entity_type:'موظف',entity_label:String(label||''),details:details||{}});}catch(e){console.warn('staff audit failed',e);}}
+ async function showStaffPage(){
+   if(!isAdmin()){alert('إدارة الموظفين متاحة للمدير فقط.');return;}
+   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page==='staffAdmin'));
+   document.getElementById('topTitle').textContent='الموظفون والصلاحيات';
+   const app=document.getElementById('app');
+   app.innerHTML='<section class="panel"><h2>الموظفون والصلاحيات</h2><p class="sub">الحسابات الجديدة تُنشأ غير مفعّلة. فعّل الموظف من هنا بعد التأكد من هويته. التعديل يظهر في سجل النشاطات.</p><div id="staffContent" class="empty">جارٍ تحميل الموظفين...</div></section>';
+   const box=document.getElementById('staffContent');
+   const {data,error}=await sb.from('profiles').select('id,full_name,role,active').order('active',{ascending:true}).order('full_name',{ascending:true});
+   if(error){box.innerHTML='<div class="notice">تعذر تحميل الموظفين.<br>'+escA(error.message)+'</div>';return;}
+   const rows=data||[];
+   if(!rows.length){box.innerHTML='<div class="empty">لا يوجد موظفون.</div>';return;}
+   const roleLabel=r=>(STAFF_ROLES.find(x=>x[0]===r)||[r,r||'—'])[1];
+   box.innerHTML='<div style="overflow:auto"><table><thead><tr><th>الاسم</th><th>الدور</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>'+rows.map(x=>{
+     const me=x.id===currentUser?.id;
+     const opts=STAFF_ROLES.map(r=>'<option value="'+escA(r[0])+'"'+(x.role===r[0]?' selected':'')+'>'+escA(r[1])+'</option>').join('');
+     return '<tr data-id="'+escA(x.id)+'"><td>'+escA(x.full_name||'بدون اسم')+(me?' <small>(أنت)</small>':'')+'</td>'
+       +'<td><select class="staffRole"'+(me?' disabled title="لا يمكنك تغيير دورك بنفسك"':'')+'>'+opts+'</select></td>'
+       +'<td>'+(x.active?'<b style="color:#157347">مفعّل</b>':'<b style="color:#b42318">غير مفعّل</b>')+'</td>'
+       +'<td>'+(me?'—':'<button type="button" class="btn '+(x.active?'light':'goldbtn')+' staffToggle">'+(x.active?'إيقاف':'تفعيل')+'</button>')+'</td></tr>';}).join('')+'</tbody></table></div>';
+   const byId=new Map(rows.map(x=>[x.id,x]));
+   box.querySelectorAll('.staffToggle').forEach(btn=>btn.onclick=async()=>{
+     const id=btn.closest('tr').dataset.id,x=byId.get(id);if(!x||id===currentUser?.id)return;
+     const next=!x.active;
+     if(!confirm((next?'تفعيل ':'إيقاف ')+(x.full_name||'هذا الحساب')+'؟'))return;
+     btn.disabled=true;
+     const {error:e}=await sb.from('profiles').update({active:next}).eq('id',id);
+     if(e){alert('تعذر التعديل: '+e.message);btn.disabled=false;return;}
+     await staffAudit(next?'تفعيل':'إيقاف',x.full_name||id,{userId:id,active:next});
+     showStaffPage();
+   });
+   box.querySelectorAll('.staffRole').forEach(sel=>sel.onchange=async()=>{
+     const id=sel.closest('tr').dataset.id,x=byId.get(id);if(!x||id===currentUser?.id)return;
+     const role=sel.value;
+     if(!confirm('تغيير دور '+(x.full_name||'هذا الحساب')+' إلى '+roleLabel(role)+'؟')){sel.value=x.role;return;}
+     sel.disabled=true;
+     const {error:e}=await sb.from('profiles').update({role}).eq('id',id);
+     if(e){alert('تعذر التعديل: '+e.message);sel.value=x.role;sel.disabled=false;return;}
+     await staffAudit('تغيير الدور',x.full_name||id,{userId:id,from:x.role,to:role});
+     showStaffPage();
+   });
+ }
+ document.addEventListener('click',e=>{const b=e.target.closest('#nav [data-page="staffAdmin"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();showStaffPage();},true);
  // Weekly reminder is local to this browser/device. Export is still a manual download.
  const BACKUP_KEY='maktaby_v89_last_backup_at';
  const oldExport=window.exportBackup;
