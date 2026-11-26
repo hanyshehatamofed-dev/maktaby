@@ -3454,9 +3454,12 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
   tabs.addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)applyTab(app,b.dataset.tab);});
   head.after(strip);strip.after(tabs);
   if(canFees()){const f=document.createElement('section');f.className='panel';f.id='mkClientFees';f.innerHTML='<h3>ملخص الأتعاب (عرض فقط)</h3>'+feeTable(rows);app.appendChild(f);}
-  applyTab(app,'overview');
+    const fb0=app.querySelector('#feeAccountsV10');if(fb0)app.insertBefore(fb0,app.querySelector('#mkClientFees'));
+applyTab(app,'overview');
   new MutationObserver(()=>{if(!app.isConnected||page!=='clientProfile')return;[...app.children].forEach(el=>{if(!el.dataset.mk2tab&&el.id!=='mkClientTabs'&&el.id!=='mkClientStrip'&&el!==app.querySelector('.pagehead')){el.dataset.mk2tab=tabOf(el);el.style.display=el.dataset.mk2tab===(app.dataset.mk2cur||'overview')?'':'none';}});}).observe(app,{childList:true});
  }
+ const baseMountFee=window.mountFeeAccountsV10;
+ if(typeof baseMountFee==='function')window.mountFeeAccountsV10=function(){const r=baseMountFee.apply(this,arguments);try{const a=document.getElementById('app');const f=a&&a.querySelector('#mkClientTabs')&&a.querySelector('#feeAccountsV10');if(f)a.insertBefore(f,a.querySelector('#mkClientFees'));}catch(e){}return r;};
  const oldProfile=renderClientProfileV54;
  renderClientProfileV54=async function(){await oldProfile.apply(this,arguments);try{enhanceClient();}catch(e){console.error('MAKTABY batch2 client tabs',e);}};
 
