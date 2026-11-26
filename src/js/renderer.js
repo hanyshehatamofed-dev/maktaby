@@ -3604,7 +3604,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
   html body .footer-connection{bottom:78px!important}
   html body #mkFloatingNotifPanel{bottom:128px!important;max-height:58vh!important}
  }
- body:has(#modal.show) #mkBottomBar,body:has(#modal.show) #mkHubBtn,body:has(#modal.show) #mkMoreSheet,body:has(#modal.show) #mkMoreScrim{display:none!important}
+ body:has(#mkMoreSheet.open) #mkHubBtn,body:has(#modal.show) #mkBottomBar,body:has(#modal.show) #mkHubBtn,body:has(#modal.show) #mkMoreSheet,body:has(#modal.show) #mkMoreScrim{display:none!important}
  @media print{#mkBottomBar,#mkMoreSheet,#mkSearchBtn,#mkRecent{display:none!important}}`;
  document.head.appendChild(st);
 
