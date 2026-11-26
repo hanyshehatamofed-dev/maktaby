@@ -3402,5 +3402,128 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else setTimeout(mount,0);
 })();
 
+/* MAKTABY PRO 10 — Batch 2: linked client/case files + fees overview (additive, read-only; no data is changed). */
+(function(){
+ if(window.__mkBatch2)return;window.__mkBatch2=true;
+ const N=v=>String(v??'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ar');
+ const E=s=>esc(String(s??''));
+ const css=document.createElement('style');
+ css.textContent='.mk2-tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid #dbe5f1;margin:10px 0 14px;padding-bottom:8px}.mk2-tabs button{white-space:nowrap;border:1px solid #d7e2ef;background:#f7faff;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;color:#344b68;cursor:pointer}.mk2-tabs button.active{background:#e6f0ff;border-color:#8fb5ed;color:#174b91}.mk2-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:10px 0}.mk2-card{border:1px solid #d9e4f2;border-radius:11px;padding:9px 13px;background:linear-gradient(135deg,#f8fbff,#eaf2ff)}.mk2-card span{display:block;font-size:12px;color:#243b58;font-weight:700}.mk2-card b{font-size:19px;color:#173b68}.mk2-card.red{background:#fff2ef;border-color:#f3d2cb}.mk2-card.red b{color:#c0392b}.mk2-card.green{background:#effaf4;border-color:#ccebd8}.mk2-card.green b{color:#13834a}.mk2-case details{border:1px solid #dbe5f1;border-radius:10px;margin:8px 0;padding:8px 12px;background:#fff}.mk2-case summary{cursor:pointer;font-weight:800;color:#174b91}.mk2-muted{color:#64748b;font-size:12px}';
+ document.head.appendChild(css);
+ const FEE_OWNER_EMAIL='hanyshehatamofed@gmail.com';
+ const canFees=()=>typeof isAdmin==='function'&&isAdmin()&&String(currentUser?.email||'').toLowerCase()===FEE_OWNER_EMAIL;
+ const agreements=()=>(Array.isArray(db.clientFeeAgreements)?db.clientFeeAgreements:[]).filter(a=>a&&!a.deletedAt&&!a.voidedAt);
+ const payments=()=>Array.isArray(db.clientFeePayments)?db.clientFeePayments:[];
+ const paidOf=a=>payments().filter(p=>String(p.agreementId)===String(a.id)).reduce((n,p)=>n+Math.max(0,Number(p.amount)||0),0);
+ const lastPay=a=>payments().filter(p=>String(p.agreementId)===String(a.id)&&p.date).map(p=>String(p.date)).sort().pop()||'';
+ const totalOf=a=>Math.max(0,Number(a.total)||0);
+ const remOf=a=>Math.max(0,totalOf(a)-paidOf(a));
+ const ownedBy=(a,c)=>{if(a.ownerType&&a.ownerId)return a.ownerType==='client'&&String(a.ownerId)===String(c.id||c.name);return !a.ownerType&&!a.ownerId&&N(a.client)===N(c.name);};
+ const sum=(rows,f)=>rows.reduce((n,a)=>n+f(a),0);
+ const feeTable=rows=>rows.length?table(['الاتفاق','القضية','المتفق عليه','المدفوع','المتبقي','الاستحقاق','آخر دفعة'],rows.map(a=>`<tr><td>${E(a.description||'اتفاق أتعاب')}</td><td>${E(a.caseNumber||'—')}</td><td>${moneyV54(totalOf(a))}</td><td>${moneyV54(paidOf(a))}</td><td><b style="color:${remOf(a)>0?'#c0392b':'#13834a'}">${moneyV54(remOf(a))}</b></td><td>${E(a.dueDate||'—')}</td><td>${E(lastPay(a)||'—')}</td></tr>`)):'<div class="empty">لا توجد اتفاقات أتعاب مسجلة.</div>';
+ const cards=a=>`<div class="mk2-strip">${a.map(x=>`<div class="mk2-card ${x[2]||''}"><span>${E(x[0])}</span><b>${E(x[1])}</b></div>`).join('')}</div>`;
+
+ /* 1) Tabbed client file: only shows/hides existing sections, never moves or edits them. */
+ const tabOf=el=>{
+  if(el.id==='feeAccountsV10'||el.id==='mkClientFees')return 'fees';
+  const h=(el.querySelector('h3')?.textContent||'');
+  if(h.includes('المستندات'))return 'docs';
+  if(h.includes('القضايا')||h.includes('الإعلانات'))return 'cases';
+  if(h.includes('مصروفات'))return 'exp';
+  return 'overview';
+ };
+ function applyTab(app,tab){
+  [...app.children].forEach(el=>{if(el.classList.contains('pagehead')&&el===app.querySelector('.pagehead'))return;if(el.id==='mkClientTabs'||el.id==='mkClientStrip')return;if(!el.dataset.mk2tab)el.dataset.mk2tab=tabOf(el);el.style.display=el.dataset.mk2tab===tab?'':'none';});
+  app.querySelectorAll('#mkClientTabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  app.dataset.mk2cur=tab;
+ }
+ function enhanceClient(){
+  const app=document.getElementById('app');const c=(db.clients||[]).find(x=>x.name===selectedClientNameV54);
+  if(!app||!c||page!=='clientProfile')return;
+  const head=app.querySelector('.pagehead');if(!head||app.querySelector('#mkClientTabs'))return;
+  const rows=agreements().filter(a=>ownedBy(a,c));
+  const cs=(db.cases||[]).filter(x=>x.client===c.name&&!x.archived);
+  const next=cs.map(x=>String(x.date||'')).filter(d=>d>=today()).sort()[0]||'—';
+  const strip=document.createElement('div');strip.id='mkClientStrip';
+  const sc=[['القضايا النشطة',cs.length],['الجلسة القادمة',next]];
+  if(canFees()){const t=sum(rows,totalOf),p=sum(rows,paidOf),r=sum(rows,remOf);sc.push(['المتفق عليه',moneyV54(t)],['المدفوع',moneyV54(p),'green'],['المتبقي',moneyV54(r),r>0?'red':'green']);}
+  strip.innerHTML=cards(sc);
+  const tabs=document.createElement('div');tabs.id='mkClientTabs';tabs.className='mk2-tabs';
+  const list=[['overview','نظرة عامة'],['cases','القضايا والجلسات'],...(canFees()?[['fees','الأتعاب والحسابات']]:[]),['exp','المصروفات'],['docs','المستندات']];
+  tabs.innerHTML=list.map(t=>`<button type="button" data-tab="${t[0]}">${t[1]}</button>`).join('');
+  tabs.addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)applyTab(app,b.dataset.tab);});
+  head.after(strip);strip.after(tabs);
+  if(canFees()){const f=document.createElement('section');f.className='panel';f.id='mkClientFees';f.innerHTML='<h3>ملخص الأتعاب (عرض فقط)</h3>'+feeTable(rows);app.appendChild(f);}
+  applyTab(app,'overview');
+  new MutationObserver(()=>{if(!app.isConnected||page!=='clientProfile')return;[...app.children].forEach(el=>{if(!el.dataset.mk2tab&&el.id!=='mkClientTabs'&&el.id!=='mkClientStrip'&&el!==app.querySelector('.pagehead')){el.dataset.mk2tab=tabOf(el);el.style.display=el.dataset.mk2tab===(app.dataset.mk2cur||'overview')?'':'none';}});}).observe(app,{childList:true});
+ }
+ const oldProfile=renderClientProfileV54;
+ renderClientProfileV54=async function(){await oldProfile.apply(this,arguments);try{enhanceClient();}catch(e){console.error('MAKTABY batch2 client tabs',e);}};
+
+ /* 2) Linked case panel under the selected case. */
+ function enhanceCase(){
+  const app=document.getElementById('app');if(!app||page!=='cases'||app.querySelector('#mkCasePanel'))return;
+  const i=Number(window.caseCompactSelectedIndex);const k=(db.cases||[])[i];if(!k||!app.querySelector('.v109-detail'))return;
+  const client=(db.clients||[]).find(x=>x.name===k.client);
+  const sessions=(db.cases||[]).filter(x=>(k.caseId&&x.caseId===k.caseId)||(k.number&&N(x.number)===N(k.number)&&N(x.client)===N(k.client)));
+  const hist=[];sessions.forEach(x=>(x.history||[]).forEach(h=>hist.push(h)));hist.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const own=client?agreements().filter(a=>ownedBy(a,client)):[];
+  const byCase=own.filter(a=>a.caseNumber&&k.number&&N(a.caseNumber)===N(k.number));
+  const exps=(db.cloudExpenses||[]).filter(x=>x.approvalStatus==='approved'&&(k.caseId&&x.caseId&&String(x.caseId)===String(k.caseId))&&(canManageOffice()||x.employeeId===currentUser?.id));
+  const docs=(db.clientDocuments||[]).filter(x=>x.client_name===k.client);
+  const sec=(t,b)=>`<details open><summary>${t}</summary><div style="margin-top:8px">${b}</div></details>`;
+  const feeHtml=canFees()?sec('الأتعاب والحسابات',(byCase.length?feeTable(byCase)+cards([['المتفق عليه',moneyV54(sum(byCase,totalOf))],['المدفوع',moneyV54(sum(byCase,paidOf)),'green'],['المتبقي',moneyV54(sum(byCase,remOf)),sum(byCase,remOf)>0?'red':'green']]):'<div class="empty">لا يوجد اتفاق مربوط برقم هذه القضية.</div>')+(own.length&&own.length!==byCase.length?`<div class="mk2-muted">إجمالي اتفاقات الموكل كله: متفق ${moneyV54(sum(own,totalOf))} · مدفوع ${moneyV54(sum(own,paidOf))} · متبقي ${moneyV54(sum(own,remOf))}. الربط هنا بالتطابق مع رقم القضية فقط، ولا يتم ربط تلقائي.</div>`:'')):'';
+  const p=document.createElement('section');p.id='mkCasePanel';p.className='panel mk2-case';p.style.marginTop='12px';
+  p.innerHTML=`<h3>الملف المرتبط بالقضية</h3><div class="mk2-muted">عرض فقط. كل البيانات من نفس السجلات الحالية.</div>`+
+   sec('الموكل',client?`<p><b>${E(client.name)}</b> · ${E(client.phone||'—')}</p><button class="btn light" type="button" onclick="openClientProfile(${JSON.stringify(client.name).replace(/"/g,'&quot;')})">فتح ملف الموكل</button>`:`<div class="empty">الموكل غير مسجل في قائمة العملاء (${E(k.client||'—')}).</div>`)+
+   sec(`الجلسات (${hist.length})`,hist.length?table(['التاريخ','الرول','القرار','سبب التأجيل'],hist.slice(0,30).map(h=>`<tr><td>${E(h.date||'—')}</td><td>${E(h.roll||'—')}</td><td>${E(h.decision||'—')}</td><td>${E(h.reason||'—')}</td></tr>`)):'<div class="empty">لا توجد جلسات سابقة مسجلة.</div>')+
+   feeHtml+
+   sec(`المصروفات (${exps.length})`,exps.length?table(['التاريخ','البند','البيان','المبلغ'],exps.map(x=>`<tr><td>${E(x.date||'—')}</td><td>${E(x.category||'—')}</td><td>${E(x.title||'—')}</td><td>${moneyV54(x.amount)}</td></tr>`))+`<div class="mk2-muted">المجموع: ${moneyV54(sum(exps,x=>Number(x.amount)||0))}</div>`:'<div class="empty">لا توجد مصروفات معتمدة مربوطة بهذه القضية.</div>')+
+   sec(`المستندات (${docs.length})`,docs.length?'<ul>'+docs.slice(0,15).map(d=>`<li>${E(d.file_name||'ملف')} <span class="mk2-muted">${E(d.category||'')}</span></li>`).join('')+'</ul><div class="mk2-muted">للفتح أو الرفع: من ملف الموكل.</div>':'<div class="empty">لا توجد مستندات محملة لهذا الموكل في الذاكرة. افتح ملف الموكل للتفاصيل.</div>');
+  app.appendChild(p);
+ }
+
+ /* 3) Fees overview page (admin / office manager). */
+ const st=window.__mkFeeOv={q:'',only:true};
+ const ownerName=a=>a.client||'—';
+ function feeRows(){
+  const q=N(st.q);
+  return agreements().map(a=>({a,t:totalOf(a),p:paidOf(a),r:remOf(a)})).filter(x=>(!st.only||x.r>0)&&(!q||[x.a.client,x.a.caseNumber,x.a.description].some(v=>N(v).includes(q)))).sort((x,y)=>y.r-x.r);
+ }
+ function feeBody(){
+  const rows=feeRows();const box=document.getElementById('mkFeeBody');if(!box)return;
+  const t=sum(rows,x=>x.t),p=sum(rows,x=>x.p),r=sum(rows,x=>x.r);
+  box.innerHTML=cards([['عدد الاتفاقات',rows.length],['المتفق عليه',moneyV54(t)],['المدفوع',moneyV54(p),'green'],['المتبقي',moneyV54(r),r>0?'red':'green']])+(rows.length?table(['الموكل','الاتفاق','القضية','المتفق عليه','المدفوع','المتبقي','الاستحقاق','آخر دفعة','الملف'],rows.map(x=>{const c=(db.clients||[]).find(z=>z.name===x.a.client);return `<tr><td>${E(ownerName(x.a))}</td><td>${E(x.a.description||'اتفاق أتعاب')}</td><td>${E(x.a.caseNumber||'—')}</td><td>${moneyV54(x.t)}</td><td>${moneyV54(x.p)}</td><td><b style="color:${x.r>0?'#c0392b':'#13834a'}">${moneyV54(x.r)}</b></td><td>${E(x.a.dueDate||'—')}</td><td>${E(lastPay(x.a)||'—')}</td><td>${c?`<button class="btn light" type="button" data-mk2client="${E(c.name)}">فتح</button>`:'—'}</td></tr>`;})):'<div class="empty">لا توجد اتفاقات مطابقة.</div>');
+ }
+ function feeCsv(){
+  const rows=feeRows();const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const lines=[['الموكل','الاتفاق','القضية','المتفق عليه','المدفوع','المتبقي','الاستحقاق','آخر دفعة'].map(q).join(',')].concat(rows.map(x=>[x.a.client,x.a.description,x.a.caseNumber,x.t,x.p,x.r,x.a.dueDate,lastPay(x.a)].map(q).join(',')));
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l.download='maktaby-fees-'+today()+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
+ }
+ function renderFees(){
+  const app=document.getElementById('app');if(!app)return;
+  setV54Page('الأتعاب والمتبقي','feesOverview');
+  app.innerHTML=`<div class="pagehead"><div><h1>الأتعاب والمتبقي</h1><div class="sub">كل اتفاقات الأتعاب: المتفق عليه والمدفوع والمتبقي لكل موكل وقضية. عرض فقط، لا يغيّر أي بيانات.</div></div><div class="actions"><button class="btn light" type="button" id="mkFeeCsv">تصدير CSV</button></div></div><section class="panel"><div class="toolbar"><input class="search" id="mkFeeQ" type="search" placeholder="بحث بالموكل أو رقم القضية أو الاتفاق..." value="${E(st.q)}"><label style="white-space:nowrap"><input type="checkbox" id="mkFeeOnly" ${st.only?'checked':''}> عليهم متبقي فقط</label></div><div id="mkFeeBody"></div></section>`;
+  document.getElementById('mkFeeQ').addEventListener('input',e=>{st.q=e.target.value;feeBody();});
+  document.getElementById('mkFeeOnly').addEventListener('change',e=>{st.only=e.target.checked;feeBody();});
+  document.getElementById('mkFeeCsv').addEventListener('click',feeCsv);
+  document.getElementById('mkFeeBody').addEventListener('click',e=>{const b=e.target.closest('[data-mk2client]');if(b)openClientProfile(b.dataset.mk2client);});
+  feeBody();
+ }
+ const nav=document.getElementById('nav');
+ if(nav&&!nav.querySelector('[data-page="feesOverview"]')){const b=document.createElement('button');b.type='button';b.dataset.page='feesOverview';b.textContent='الأتعاب والمتبقي';b.style.display='none';nav.appendChild(b);}
+ const navTimer=setInterval(()=>{if(currentUser){clearInterval(navTimer);const b=document.querySelector('#nav [data-page="feesOverview"]');if(b)b.style.display=canFees()?'':'none';}},500);
+ document.addEventListener('click',e=>{const b=e.target.closest('#nav [data-page="feesOverview"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();if(!canFees()){alert('هذه الصفحة متاحة للمدير ومديرة المكتب فقط.');return;}page='feesOverview';render();},true);
+ const baseRender=render;
+ render=function(){
+  if(page==='feesOverview'){if(canFees()){renderFees();return;}page='dashboard';}
+  if(page==='income'&&!canFees()){alert('صفحة الوارد متاحة لصاحب المكتب فقط.');page='dashboard';}
+  const r=baseRender.apply(this,arguments);
+  try{const inc=document.querySelector('#nav [data-page="income"]');if(inc&&!canFees())inc.style.display='none';}catch(e){}
+  if(page==='cases'){try{enhanceCase();}catch(e){console.error('MAKTABY batch2 case panel',e);}}
+  return r;
+ };
+})();
+
 console.log(`PASS ${checks.length}/${checks.length} web candidate source checks`);
 for(const c of checks)console.log(' - '+c);
