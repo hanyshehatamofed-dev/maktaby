@@ -2318,7 +2318,7 @@ window.purgeArchivedRecordV87=async(type,i)=>{if(!canManageOffice())return;const
  const n=pendingApprovals();b.innerHTML=`<strong>تنبيهات المكتب</strong><span class="v91-count">${n} طلب اعتماد معلق</span><span>آخر تحديث: ${new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span><button type="button" id="v91OpenApprovals">عرض الطلبات</button>`;
  const btn=$('#v91OpenApprovals');if(btn)btn.onclick=()=>{const nav=$('#nav [data-page="approvals"]');if(nav)nav.click();};
  }
- function showTodayTasks(){if(!getUser()||lastTaskPopupDay===new Date().toISOString().slice(0,10))return;lastTaskPopupDay=new Date().toISOString().slice(0,10);const day=typeof window.today==='function'?today():new Date().toISOString().slice(0,10);const tasks=(getDb().tasks||[]).filter(t=>String(t.date||t.dueDate||'').slice(0,10)===day&&!['تم التنفيذ','منفذ','completed','done'].includes(String(t.status||'').toLowerCase()));const cases=(getDb().cases||[]).filter(c=>String(c.date||'').slice(0,10)===day&&!c.archived);if(!tasks.length&&!cases.length)return;
+ function showTodayTasks(){if(!getUser())return;const __pd=new Date().toISOString().slice(0,10);let __seen='';try{__seen=localStorage.getItem('mk_v91_task_popup_day')||'';}catch(_){}if(lastTaskPopupDay===__pd||__seen===__pd)return;lastTaskPopupDay=__pd;try{localStorage.setItem('mk_v91_task_popup_day',__pd);}catch(_){}const day=typeof window.today==='function'?today():new Date().toISOString().slice(0,10);const tasks=(getDb().tasks||[]).filter(t=>String(t.date||t.dueDate||'').slice(0,10)===day&&!['تم التنفيذ','منفذ','completed','done'].includes(String(t.status||'').toLowerCase()));const cases=(getDb().cases||[]).filter(c=>String(c.date||'').slice(0,10)===day&&!c.archived);if(!tasks.length&&!cases.length)return;
  const box=document.createElement('div');box.id='v91TodayTasks';box.innerHTML=`<div class="v91-dialog" dir="rtl"><h3>ملخص مهام اليوم</h3><p>لديك ${tasks.length} مهمة و${cases.length} جلسة بتاريخ اليوم.</p>${tasks.map(t=>`<div class="v91-task"><b>${esc(t.task||t.title||'مهمة')}</b><br>${esc(t.client||'')} ${esc(t.court||'')} — ${esc(t.status||'مفتوحة')}</div>`).join('')}${cases.map(c=>`<div class="v91-task"><b>جلسة: ${esc(c.client||'—')}</b><br>دعوى ${esc(c.number||'—')} — ${esc(c.court||'—')}</div>`).join('')}<div style="display:flex;gap:8px;margin-top:14px"><button class="btn goldbtn" id="v91GoCases">فتح الجلسات</button><button class="btn light" id="v91CloseTasks">إغلاق</button></div></div>`;document.body.appendChild(box);$('#v91CloseTasks').onclick=()=>box.remove();$('#v91GoCases').onclick=()=>{box.remove();const n=$('#nav [data-page="cases"]');if(n)n.click();};box.addEventListener('click',e=>{if(e.target===box)box.remove();});
  }
  function makeFilters(){const app=$('#app');if(!app)return;
@@ -3297,7 +3297,7 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
   const btn=document.createElement('button');btn.type='button';btn.id='mkFloatingNotifBtn';btn.className='mk-floating-notif-btn';btn.setAttribute('aria-label','فتح مركز التنبيهات');btn.setAttribute('aria-controls','mkFloatingNotifPanel');btn.setAttribute('aria-expanded','false');btn.innerHTML='<span class="mk-floating-bell" aria-hidden="true">🔔</span><span class="mk-floating-label">التنبيهات</span><span id="mkFloatingNotifCount" class="mk-floating-count" style="display:none">0</span>';
   const panel=document.createElement('section');panel.id='mkFloatingNotifPanel';panel.className='mk-floating-notif-panel';panel.setAttribute('aria-label','مركز التنبيهات');panel.setAttribute('aria-hidden','true');panel.innerHTML='<header><div><strong>مركز التنبيهات</strong><small>المواعيد والمهام والطلبات التي تحتاج متابعة</small></div><button type="button" class="mk-floating-close" aria-label="إغلاق مركز التنبيهات">×</button></header><div id="mkFloatingNotifList" class="mk-floating-notif-list" aria-live="polite"></div>';
   document.body.append(btn,panel);
-  btn.addEventListener('click',()=>{const open=!panel.classList.contains('open');panel.classList.toggle('open',open);panel.setAttribute('aria-hidden',String(!open));btn.setAttribute('aria-expanded',String(open));if(open)refresh();});
+  btn.addEventListener('click',()=>{const open=!panel.classList.contains('open');panel.classList.toggle('open',open);panel.setAttribute('aria-hidden',String(!open));btn.setAttribute('aria-expanded',String(open));if(open){try{localStorage.setItem('mk_notif_seen_v1',JSON.stringify(collect().map(x=>[x.kind,x.who,x.date,x.detail].join('|')).slice(-500)));}catch(_){}refresh();}});
   panel.querySelector('.mk-floating-close').addEventListener('click',close);
   panel.addEventListener('click',e=>{const item=e.target.closest('[data-mk-target]');if(!item)return;const target=item.getAttribute('data-mk-target');if(target==='approvals'&&typeof canReview==='function'&&!canReview()){alert('طلبات الاعتماد متاحة للمخولين بالمراجعة فقط.');return;}if(typeof page!=='undefined')page=target;close();if(typeof render==='function')render();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
@@ -3306,7 +3306,7 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
  }
  function refresh(){
   const list=collect(),count=document.getElementById('mkFloatingNotifCount'),body=document.getElementById('mkFloatingNotifList');if(!body)return;
-  if(count){count.textContent=String(list.length);count.style.display=list.length?'inline-flex':'none';}
+  if(count){let __s=new Set();try{__s=new Set(JSON.parse(localStorage.getItem('mk_notif_seen_v1')||'[]'));}catch(_){}const __un=list.filter(x=>!__s.has([x.kind,x.who,x.date,x.detail].join('|'))).length;count.textContent=String(__un);count.style.display=__un?'inline-flex':'none';}
   body.innerHTML=list.length?list.map(x=>`<button type="button" class="mk-floating-notif-item ${x.level==='urgent'?'urgent':x.level==='pending'?'pending':''}" data-mk-target="${escN(x.target)}"><i>${x.icon}</i><span><b>${escN(x.kind)}</b><small>${escN(x.who||'بدون اسم')} · ${escN(x.date||'حديث')}</small><em>${escN(x.detail|| (x.level==='urgent'?'يتطلب متابعة عاجلة':x.level==='pending'?'بانتظار الاعتماد':'موعد قريب'))}</em></span><span class="mk-floating-arrow">‹</span></button>`).join(''):'<div class="mk-floating-empty">لا توجد تنبيهات حالية.<br>ستظهر هنا الجلسات والمهام والإعلانات والاعتمادات التي تحتاج متابعة.</div>';
  }
  function start(){mount();const oldRender=typeof render==='function'?render:null;if(oldRender&&!oldRender.__mkFloatingNotifWrapped){const wrapped=function(){oldRender.apply(this,arguments);mount();refresh();};wrapped.__mkFloatingNotifWrapped=true;render=wrapped;}setInterval(()=>{mount();refresh();},20000);}
@@ -3530,3 +3530,47 @@ applyTab(app,'overview');
 
 console.log(`PASS ${checks.length}/${checks.length} web candidate source checks`);
 for(const c of checks)console.log(' - '+c);
+
+/* MAKTABY PRO 10 — calm floating UI: one small hub button instead of four floating items */
+(function(){
+ if(window.__maktabyHub10)return;window.__maktabyHub10=true;
+ const st=document.createElement('style');st.textContent=`
+ html body #mkFloatingNotifBtn,html body #mkCourtFab,html body #maktabyWeeklyBackupNotice{display:none!important}
+ html body #maktabyV85Status:not([data-kind="error"]){display:none!important}
+ html body .footer-connection{position:fixed!important;right:12px!important;bottom:14px!important;left:auto!important;width:12px!important;height:12px!important;min-width:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:50%!important;background:transparent!important;box-shadow:none!important;font-size:0!important;z-index:9000!important;overflow:hidden!important;opacity:.7}
+ html body .footer-connection i{width:12px!important;height:12px!important;display:block!important}
+ html body .footer-connection b,html body .footer-connection strong{display:none!important}
+ html body .footer-connection[data-bad="1"] i{background:#d93636!important}
+ #mkHubBtn{position:fixed;left:14px;bottom:14px;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(20,40,63,.86);color:#fff;font:700 22px/1 Tahoma,Arial,sans-serif;display:flex;align-items:center;justify-content:center;padding:0 0 6px;cursor:pointer;z-index:12010;box-shadow:0 3px 10px rgba(7,29,53,.25)}
+ #mkHubBtn .mk-hub-badge{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 4px;border:2px solid #fff;border-radius:12px;background:#d93636;color:#fff;font:800 10px/15px Tahoma,Arial,sans-serif;text-align:center;padding-bottom:0}
+ #mkHubBtn .mk-hub-dot{position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:#d6a744;border:2px solid #fff}
+ #mkHubMenu{position:fixed;left:14px;bottom:66px;z-index:12011;min-width:210px;max-width:calc(100vw - 28px);background:#fff;border:1px solid #d9e2ec;border-radius:14px;box-shadow:0 12px 36px rgba(7,29,53,.25);padding:6px;direction:rtl;display:none}
+ #mkHubMenu.open{display:block}
+ #mkHubMenu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:12px;border-radius:10px;font:700 14px Tahoma,Arial,sans-serif;color:#14283f;cursor:pointer;text-align:right}
+ #mkHubMenu button:hover,#mkHubMenu button:active{background:#f1f4f8}
+ #mkHubMenu .mk-hub-n{margin-right:auto;background:#d93636;color:#fff;border-radius:12px;padding:1px 8px;font-size:11px}
+ #mkHubMenu .mk-hub-d{margin-right:auto;width:9px;height:9px;border-radius:50%;background:#d6a744}
+ @media print{#mkHubBtn,#mkHubMenu{display:none!important}}`;
+ document.head.appendChild(st);
+ const $=id=>document.getElementById(id);
+ let btn,menu;
+ function unread(){const c=$('mkFloatingNotifCount');return c?parseInt(c.textContent,10)||0:0;}
+ function backupDue(){return !!$('maktabyWeeklyBackupNotice');}
+ function paint(){if(!btn)return;btn.querySelectorAll('.mk-hub-badge,.mk-hub-dot').forEach(e=>e.remove());const n=unread();if(n){const b=document.createElement('span');b.className='mk-hub-badge';b.textContent=n>99?'99+':String(n);btn.appendChild(b);}else if(backupDue()){const d=document.createElement('span');d.className='mk-hub-dot';btn.appendChild(d);}
+  const f=document.querySelector('.footer-connection'),cs=$('cloudStatus');if(f&&cs)f.dataset.bad=/تعذر|غير متصل/.test(cs.textContent)?'1':'0';}
+ function build(){menu.innerHTML='';const items=[];
+  if($('mkFloatingNotifBtn'))items.push(['🔔','التنبيهات',unread()?`<span class="mk-hub-n">${unread()}</span>`:'',()=>$('mkFloatingNotifBtn').click()]);
+  if($('mkCourtFab'))items.push(['⚖','وضع المحكمة','',()=>$('mkCourtFab').click()]);
+  if(backupDue())items.push(['💾','نسخة احتياطية أسبوعية','<span class="mk-hub-d"></span>',()=>{const b=$('maktabyBackupNow');if(b)b.click();}]);
+  items.forEach(([ic,label,extra,fn])=>{const b=document.createElement('button');b.type='button';b.innerHTML=`<span aria-hidden="true">${ic}</span><span>${label}</span>${extra}`;b.addEventListener('click',e=>{e.stopPropagation();menu.classList.remove('open');btn.setAttribute('aria-expanded','false');fn();setTimeout(paint,150);});menu.appendChild(b);});}
+ function mount(){if($('mkHubBtn')||!document.body)return;
+  btn=document.createElement('button');btn.type='button';btn.id='mkHubBtn';btn.textContent='⋯';btn.setAttribute('aria-label','القائمة السريعة: التنبيهات ووضع المحكمة');btn.setAttribute('aria-haspopup','true');btn.setAttribute('aria-expanded','false');
+  menu=document.createElement('div');menu.id='mkHubMenu';menu.setAttribute('role','menu');
+  document.body.append(btn,menu);
+  btn.addEventListener('click',e=>{e.stopPropagation();const open=!menu.classList.contains('open');if(open)build();menu.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open));});
+  document.addEventListener('click',e=>{if(menu.classList.contains('open')&&!menu.contains(e.target)&&e.target!==btn){menu.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
+  paint();}
+ function start(){mount();setInterval(()=>{mount();paint();},1500);}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
