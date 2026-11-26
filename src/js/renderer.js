@@ -97,7 +97,7 @@ localStorage.setItem(STORAGE_KEY,JSON.stringify(db));let cloudStateVersions={off
 async function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(db));render();if(!currentUser||!canManageOffice())return;try{await saveCloudState({persistLocal:false});setCloudStatus('تم الحفظ والمزامنة');}catch(e){setCloudStatus('تعذر المزامنة: '+(e.message||e));console.error(e);alert('تم الحفظ محليًا، لكن تعذرت المزامنة مع الإنترنت: '+(e.message||e));}}
 function setCloudStatus(t){let el=document.getElementById('cloudStatus');if(el)el.textContent=t;}
 function sharedPayload(){return {clients:db.clients||[],cases:db.cases||[],announcements:db.announcements||[],tasks:db.tasks||[],taskArchive:db.taskArchive||[],achievements:db.achievements||[],announcementArchive:db.announcementArchive||[],caseArchive:db.caseArchive||[],clientArchive:db.clientArchive||[],poaArchive:db.poaArchive||[],enumerations:db.enumerations||[],meta:db.meta||{},powerOfAttorneys:db.powerOfAttorneys||[],appealRules:db.appealRules||[],appealCalculations:db.appealCalculations||[],legalHolidays:db.legalHolidays||[]};}
-function employeePayload(){return {clients:(db.clients||[]).map(c=>({name:c.name,phone:c.phone||'',phone2:c.phone2||'',powerOfAttorneyNo:c.powerOfAttorneyNo||'',subject:c.subject||'',fees:c.fees||'',notes:c.notes||''})),cases:(db.cases||[]).filter(c=>!c.archived).map(c=>({...c,caseId:c.caseId||c.id,result:c.result||c.decision||'',history:Array.isArray(c.history)?c.history:[]})),announcements:(db.announcements||[]).filter(a=>!a.archived).map(a=>({client:a.client,number:a.number,court:a.court,bailiff:a.bailiff,deliveryDate:a.deliveryDate,receivedDate:'',status:a.status||'قيد الإعلان',kind:a.kind,session:a.session})),tasks:db.tasks||[],taskArchive:db.taskArchive||[],achievements:db.achievements||[],enumerations:db.enumerations||[],meta:db.meta||{},powerOfAttorneys:db.powerOfAttorneys||[],appealRules:db.appealRules||[],appealCalculations:db.appealCalculations||[],legalHolidays:db.legalHolidays||[]};}
+function employeePayload(){return {clients:(db.clients||[]).map(c=>({name:c.name,phone:c.phone||'',phone2:c.phone2||'',powerOfAttorneyNo:c.powerOfAttorneyNo||'',subject:c.subject||'',fees:'',notes:c.notes||''})),cases:(db.cases||[]).filter(c=>!c.archived).map(c=>({...c,caseId:c.caseId||c.id,result:c.result||c.decision||'',history:Array.isArray(c.history)?c.history:[]})),announcements:(db.announcements||[]).filter(a=>!a.archived).map(a=>({client:a.client,number:a.number,court:a.court,bailiff:a.bailiff,deliveryDate:a.deliveryDate,receivedDate:'',status:a.status||'قيد الإعلان',kind:a.kind,session:a.session})),tasks:db.tasks||[],taskArchive:db.taskArchive||[],achievements:db.achievements||[],enumerations:db.enumerations||[],meta:db.meta||{},powerOfAttorneys:db.powerOfAttorneys||[],appealRules:db.appealRules||[],appealCalculations:db.appealCalculations||[],legalHolidays:db.legalHolidays||[]};}
 // V9.5.0: Preserve financial rows and honor local updates/tombstones across cloud merges.
 function financialRowFingerprint(row){
  if(row&&row.id!==undefined&&row.id!==null&&String(row.id)!=='')return 'id:'+String(row.id);
@@ -860,7 +860,7 @@ async function reviewEmployeeExpenseV54(expenseId,approve){
     const norm=v=>String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ar');
     const isGeneralExpense=norm(expense.client_name)==='مصروفات عامة';
     if(!isGeneralExpense){
-      let fq=sb.from('fee_files').select('id,title,case_number,client_name,client_id,case_id,agreed_amount').eq('status','open').order('created_at',{ascending:false});
+      let fq=(isAdmin()?sb.from('fee_files'):sb.from('fee_files_lookup')).select(isAdmin()?'id,title,case_number,client_name,client_id,case_id,agreed_amount':'id,title,case_number,client_name,client_id,case_id').eq('status','open').order('created_at',{ascending:false});
       if(expense.client_id)fq=fq.eq('client_id',expense.client_id);
       const {data:files,error:fileError}=await fq;
       if(fileError)throw fileError;
@@ -883,7 +883,7 @@ async function reviewEmployeeExpenseV54(expenseId,approve){
       }
       let selected=eligible.find(f=>String(f.id)===String(expense.fee_file_id));
       if(!selected){
-        const choices=eligible.map((f,i)=>`${i+1}) ${f.title||'اتفاق بدون عنوان'} — ${f.case_number||'بدون رقم قضية'} — ${f.agreed_amount} ج`).join('\n');
+        const choices=eligible.map((f,i)=>`${i+1}) ${f.title||'اتفاق بدون عنوان'} — ${f.case_number||'بدون رقم قضية'}${isAdmin()?' — '+f.agreed_amount+' ج':''}`).join('\n');
         const answer=prompt('اختر اتفاق الأتعاب الذي سيُرحّل إليه المصروف بكتابة رقمه:\n'+choices,'1');
         if(answer===null)return;
         const n=Number(answer);if(!Number.isInteger(n)||n<1||n>eligible.length)throw new Error('رقم الاتفاق المختار غير صحيح.');
@@ -2318,7 +2318,7 @@ window.purgeArchivedRecordV87=async(type,i)=>{if(!canManageOffice())return;const
  const n=pendingApprovals();b.innerHTML=`<strong>تنبيهات المكتب</strong><span class="v91-count">${n} طلب اعتماد معلق</span><span>آخر تحديث: ${new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</span><button type="button" id="v91OpenApprovals">عرض الطلبات</button>`;
  const btn=$('#v91OpenApprovals');if(btn)btn.onclick=()=>{const nav=$('#nav [data-page="approvals"]');if(nav)nav.click();};
  }
- function showTodayTasks(){if(!getUser()||lastTaskPopupDay===new Date().toISOString().slice(0,10))return;lastTaskPopupDay=new Date().toISOString().slice(0,10);const day=typeof window.today==='function'?today():new Date().toISOString().slice(0,10);const tasks=(getDb().tasks||[]).filter(t=>String(t.date||t.dueDate||'').slice(0,10)===day&&!['تم التنفيذ','منفذ','completed','done'].includes(String(t.status||'').toLowerCase()));const cases=(getDb().cases||[]).filter(c=>String(c.date||'').slice(0,10)===day&&!c.archived);if(!tasks.length&&!cases.length)return;
+ function showTodayTasks(){if(!getUser())return;const __pd=new Date().toISOString().slice(0,10);let __seen='';try{__seen=localStorage.getItem('mk_v91_task_popup_day')||'';}catch(_){}if(lastTaskPopupDay===__pd||__seen===__pd)return;lastTaskPopupDay=__pd;try{localStorage.setItem('mk_v91_task_popup_day',__pd);}catch(_){}const day=typeof window.today==='function'?today():new Date().toISOString().slice(0,10);const tasks=(getDb().tasks||[]).filter(t=>String(t.date||t.dueDate||'').slice(0,10)===day&&!['تم التنفيذ','منفذ','completed','done'].includes(String(t.status||'').toLowerCase()));const cases=(getDb().cases||[]).filter(c=>String(c.date||'').slice(0,10)===day&&!c.archived);if(!tasks.length&&!cases.length)return;
  const box=document.createElement('div');box.id='v91TodayTasks';box.innerHTML=`<div class="v91-dialog" dir="rtl"><h3>ملخص مهام اليوم</h3><p>لديك ${tasks.length} مهمة و${cases.length} جلسة بتاريخ اليوم.</p>${tasks.map(t=>`<div class="v91-task"><b>${esc(t.task||t.title||'مهمة')}</b><br>${esc(t.client||'')} ${esc(t.court||'')} — ${esc(t.status||'مفتوحة')}</div>`).join('')}${cases.map(c=>`<div class="v91-task"><b>جلسة: ${esc(c.client||'—')}</b><br>دعوى ${esc(c.number||'—')} — ${esc(c.court||'—')}</div>`).join('')}<div style="display:flex;gap:8px;margin-top:14px"><button class="btn goldbtn" id="v91GoCases">فتح الجلسات</button><button class="btn light" id="v91CloseTasks">إغلاق</button></div></div>`;document.body.appendChild(box);$('#v91CloseTasks').onclick=()=>box.remove();$('#v91GoCases').onclick=()=>{box.remove();const n=$('#nav [data-page="cases"]');if(n)n.click();};box.addEventListener('click',e=>{if(e.target===box)box.remove();});
  }
  function makeFilters(){const app=$('#app');if(!app)return;
@@ -3297,7 +3297,7 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
   const btn=document.createElement('button');btn.type='button';btn.id='mkFloatingNotifBtn';btn.className='mk-floating-notif-btn';btn.setAttribute('aria-label','فتح مركز التنبيهات');btn.setAttribute('aria-controls','mkFloatingNotifPanel');btn.setAttribute('aria-expanded','false');btn.innerHTML='<span class="mk-floating-bell" aria-hidden="true">🔔</span><span class="mk-floating-label">التنبيهات</span><span id="mkFloatingNotifCount" class="mk-floating-count" style="display:none">0</span>';
   const panel=document.createElement('section');panel.id='mkFloatingNotifPanel';panel.className='mk-floating-notif-panel';panel.setAttribute('aria-label','مركز التنبيهات');panel.setAttribute('aria-hidden','true');panel.innerHTML='<header><div><strong>مركز التنبيهات</strong><small>المواعيد والمهام والطلبات التي تحتاج متابعة</small></div><button type="button" class="mk-floating-close" aria-label="إغلاق مركز التنبيهات">×</button></header><div id="mkFloatingNotifList" class="mk-floating-notif-list" aria-live="polite"></div>';
   document.body.append(btn,panel);
-  btn.addEventListener('click',()=>{const open=!panel.classList.contains('open');panel.classList.toggle('open',open);panel.setAttribute('aria-hidden',String(!open));btn.setAttribute('aria-expanded',String(open));if(open)refresh();});
+  btn.addEventListener('click',()=>{const open=!panel.classList.contains('open');panel.classList.toggle('open',open);panel.setAttribute('aria-hidden',String(!open));btn.setAttribute('aria-expanded',String(open));if(open){try{localStorage.setItem('mk_notif_seen_v1',JSON.stringify(collect().map(x=>[x.kind,x.who,x.date,x.detail].join('|')).slice(-500)));}catch(_){}refresh();}});
   panel.querySelector('.mk-floating-close').addEventListener('click',close);
   panel.addEventListener('click',e=>{const item=e.target.closest('[data-mk-target]');if(!item)return;const target=item.getAttribute('data-mk-target');if(target==='approvals'&&typeof canReview==='function'&&!canReview()){alert('طلبات الاعتماد متاحة للمخولين بالمراجعة فقط.');return;}if(typeof page!=='undefined')page=target;close();if(typeof render==='function')render();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
@@ -3306,7 +3306,7 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
  }
  function refresh(){
   const list=collect(),count=document.getElementById('mkFloatingNotifCount'),body=document.getElementById('mkFloatingNotifList');if(!body)return;
-  if(count){count.textContent=String(list.length);count.style.display=list.length?'inline-flex':'none';}
+  if(count){let __s=new Set();try{__s=new Set(JSON.parse(localStorage.getItem('mk_notif_seen_v1')||'[]'));}catch(_){}const __un=list.filter(x=>!__s.has([x.kind,x.who,x.date,x.detail].join('|'))).length;count.textContent=String(__un);count.style.display=__un?'inline-flex':'none';}
   body.innerHTML=list.length?list.map(x=>`<button type="button" class="mk-floating-notif-item ${x.level==='urgent'?'urgent':x.level==='pending'?'pending':''}" data-mk-target="${escN(x.target)}"><i>${x.icon}</i><span><b>${escN(x.kind)}</b><small>${escN(x.who||'بدون اسم')} · ${escN(x.date||'حديث')}</small><em>${escN(x.detail|| (x.level==='urgent'?'يتطلب متابعة عاجلة':x.level==='pending'?'بانتظار الاعتماد':'موعد قريب'))}</em></span><span class="mk-floating-arrow">‹</span></button>`).join(''):'<div class="mk-floating-empty">لا توجد تنبيهات حالية.<br>ستظهر هنا الجلسات والمهام والإعلانات والاعتمادات التي تحتاج متابعة.</div>';
  }
  function start(){mount();const oldRender=typeof render==='function'?render:null;if(oldRender&&!oldRender.__mkFloatingNotifWrapped){const wrapped=function(){oldRender.apply(this,arguments);mount();refresh();};wrapped.__mkFloatingNotifWrapped=true;render=wrapped;}setInterval(()=>{mount();refresh();},20000);}
@@ -3402,5 +3402,175 @@ window.MAKTABY_APPROVAL_POLL_GUARD={enabled:true,version:'10.0.0'};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);else setTimeout(mount,0);
 })();
 
-console.log(`PASS ${checks.length}/${checks.length} web candidate source checks`);
-for(const c of checks)console.log(' - '+c);
+/* MAKTABY PRO 10 — Batch 2: linked client/case files + fees overview (additive, read-only; no data is changed). */
+(function(){
+ if(window.__mkBatch2)return;window.__mkBatch2=true;
+ const N=v=>String(v??'').trim().replace(/\s+/g,' ').toLocaleLowerCase('ar');
+ const E=s=>esc(String(s??''));
+ const css=document.createElement('style');
+ css.textContent='.mk2-tabs{display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid #dbe5f1;margin:10px 0 14px;padding-bottom:8px}.mk2-tabs button{white-space:nowrap;border:1px solid #d7e2ef;background:#f7faff;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;color:#344b68;cursor:pointer}.mk2-tabs button.active{background:#e6f0ff;border-color:#8fb5ed;color:#174b91}.mk2-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:10px 0}.mk2-card{border:1px solid #d9e4f2;border-radius:11px;padding:9px 13px;background:linear-gradient(135deg,#f8fbff,#eaf2ff)}.mk2-card span{display:block;font-size:12px;color:#243b58;font-weight:700}.mk2-card b{font-size:19px;color:#173b68}.mk2-card.red{background:#fff2ef;border-color:#f3d2cb}.mk2-card.red b{color:#c0392b}.mk2-card.green{background:#effaf4;border-color:#ccebd8}.mk2-card.green b{color:#13834a}.mk2-case details{border:1px solid #dbe5f1;border-radius:10px;margin:8px 0;padding:8px 12px;background:#fff}.mk2-case summary{cursor:pointer;font-weight:800;color:#174b91}.mk2-muted{color:#64748b;font-size:12px}';
+ document.head.appendChild(css);
+ const FEE_OWNER_EMAIL='hanyshehatamofed@gmail.com';
+ const canFees=()=>typeof isAdmin==='function'&&isAdmin()&&String(currentUser?.email||'').toLowerCase()===FEE_OWNER_EMAIL;
+ const agreements=()=>(Array.isArray(db.clientFeeAgreements)?db.clientFeeAgreements:[]).filter(a=>a&&!a.deletedAt&&!a.voidedAt);
+ const payments=()=>Array.isArray(db.clientFeePayments)?db.clientFeePayments:[];
+ const paidOf=a=>payments().filter(p=>String(p.agreementId)===String(a.id)).reduce((n,p)=>n+Math.max(0,Number(p.amount)||0),0);
+ const lastPay=a=>payments().filter(p=>String(p.agreementId)===String(a.id)&&p.date).map(p=>String(p.date)).sort().pop()||'';
+ const totalOf=a=>Math.max(0,Number(a.total)||0);
+ const remOf=a=>Math.max(0,totalOf(a)-paidOf(a));
+ const ownedBy=(a,c)=>{if(a.ownerType&&a.ownerId)return a.ownerType==='client'&&String(a.ownerId)===String(c.id||c.name);return !a.ownerType&&!a.ownerId&&N(a.client)===N(c.name);};
+ const sum=(rows,f)=>rows.reduce((n,a)=>n+f(a),0);
+ const feeTable=rows=>rows.length?table(['الاتفاق','القضية','المتفق عليه','المدفوع','المتبقي','الاستحقاق','آخر دفعة'],rows.map(a=>`<tr><td>${E(a.description||'اتفاق أتعاب')}</td><td>${E(a.caseNumber||'—')}</td><td>${moneyV54(totalOf(a))}</td><td>${moneyV54(paidOf(a))}</td><td><b style="color:${remOf(a)>0?'#c0392b':'#13834a'}">${moneyV54(remOf(a))}</b></td><td>${E(a.dueDate||'—')}</td><td>${E(lastPay(a)||'—')}</td></tr>`)):'<div class="empty">لا توجد اتفاقات أتعاب مسجلة.</div>';
+ const cards=a=>`<div class="mk2-strip">${a.map(x=>`<div class="mk2-card ${x[2]||''}"><span>${E(x[0])}</span><b>${E(x[1])}</b></div>`).join('')}</div>`;
+
+ /* 1) Tabbed client file: only shows/hides existing sections, never moves or edits them. */
+ const tabOf=el=>{
+  if(el.id==='feeAccountsV10'||el.id==='mkClientFees')return 'fees';
+  const h=(el.querySelector('h3')?.textContent||'');
+  if(h.includes('المستندات'))return 'docs';
+  if(h.includes('القضايا')||h.includes('الإعلانات'))return 'cases';
+  if(h.includes('مصروفات'))return 'exp';
+  return 'overview';
+ };
+ function applyTab(app,tab){
+  [...app.children].forEach(el=>{if(el.classList.contains('pagehead')&&el===app.querySelector('.pagehead'))return;if(el.id==='mkClientTabs'||el.id==='mkClientStrip')return;if(!el.dataset.mk2tab)el.dataset.mk2tab=tabOf(el);el.style.display=el.dataset.mk2tab===tab?'':'none';});
+  app.querySelectorAll('#mkClientTabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  app.dataset.mk2cur=tab;
+ }
+ function enhanceClient(){
+  const app=document.getElementById('app');const c=(db.clients||[]).find(x=>x.name===selectedClientNameV54);
+  if(!app||!c||page!=='clientProfile')return;
+  const head=app.querySelector('.pagehead');if(!head||app.querySelector('#mkClientTabs'))return;
+  const rows=agreements().filter(a=>ownedBy(a,c));
+  const cs=(db.cases||[]).filter(x=>x.client===c.name&&!x.archived);
+  const next=cs.map(x=>String(x.date||'')).filter(d=>d>=today()).sort()[0]||'—';
+  const strip=document.createElement('div');strip.id='mkClientStrip';
+  const sc=[['القضايا النشطة',cs.length],['الجلسة القادمة',next]];
+  if(canFees()){const t=sum(rows,totalOf),p=sum(rows,paidOf),r=sum(rows,remOf);sc.push(['المتفق عليه',moneyV54(t)],['المدفوع',moneyV54(p),'green'],['المتبقي',moneyV54(r),r>0?'red':'green']);}
+  strip.innerHTML=cards(sc);
+  const tabs=document.createElement('div');tabs.id='mkClientTabs';tabs.className='mk2-tabs';
+  const list=[['overview','نظرة عامة'],['cases','القضايا والجلسات'],...(canFees()?[['fees','الأتعاب والحسابات']]:[]),['exp','المصروفات'],['docs','المستندات']];
+  tabs.innerHTML=list.map(t=>`<button type="button" data-tab="${t[0]}">${t[1]}</button>`).join('');
+  tabs.addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)applyTab(app,b.dataset.tab);});
+  head.after(strip);strip.after(tabs);
+  if(canFees()){const f=document.createElement('section');f.className='panel';f.id='mkClientFees';f.innerHTML='<h3>ملخص الأتعاب (عرض فقط)</h3>'+feeTable(rows);app.appendChild(f);}
+    const fb0=app.querySelector('#feeAccountsV10');if(fb0)app.insertBefore(fb0,app.querySelector('#mkClientFees'));
+applyTab(app,'overview');
+  new MutationObserver(()=>{if(!app.isConnected||page!=='clientProfile')return;[...app.children].forEach(el=>{if(!el.dataset.mk2tab&&el.id!=='mkClientTabs'&&el.id!=='mkClientStrip'&&el!==app.querySelector('.pagehead')){el.dataset.mk2tab=tabOf(el);el.style.display=el.dataset.mk2tab===(app.dataset.mk2cur||'overview')?'':'none';}});}).observe(app,{childList:true});
+ }
+ const baseMountFee=window.mountFeeAccountsV10;
+ if(typeof baseMountFee==='function')window.mountFeeAccountsV10=function(){const r=baseMountFee.apply(this,arguments);try{const a=document.getElementById('app');const f=a&&a.querySelector('#mkClientTabs')&&a.querySelector('#feeAccountsV10');if(f)a.insertBefore(f,a.querySelector('#mkClientFees'));}catch(e){}return r;};
+ const oldProfile=renderClientProfileV54;
+ renderClientProfileV54=async function(){await oldProfile.apply(this,arguments);try{enhanceClient();}catch(e){console.error('MAKTABY batch2 client tabs',e);}};
+
+ /* 2) Linked case panel under the selected case. */
+ function enhanceCase(){
+  const app=document.getElementById('app');if(!app||page!=='cases'||app.querySelector('#mkCasePanel'))return;
+  const i=Number(window.caseCompactSelectedIndex);const k=(db.cases||[])[i];if(!k||!app.querySelector('.v109-detail'))return;
+  const client=(db.clients||[]).find(x=>x.name===k.client);
+  const sessions=(db.cases||[]).filter(x=>(k.caseId&&x.caseId===k.caseId)||(k.number&&N(x.number)===N(k.number)&&N(x.client)===N(k.client)));
+  const hist=[];sessions.forEach(x=>(x.history||[]).forEach(h=>hist.push(h)));hist.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const own=client?agreements().filter(a=>ownedBy(a,client)):[];
+  const byCase=own.filter(a=>a.caseNumber&&k.number&&N(a.caseNumber)===N(k.number));
+  const exps=(db.cloudExpenses||[]).filter(x=>x.approvalStatus==='approved'&&(k.caseId&&x.caseId&&String(x.caseId)===String(k.caseId))&&(canManageOffice()||x.employeeId===currentUser?.id));
+  const docs=(db.clientDocuments||[]).filter(x=>x.client_name===k.client);
+  const sec=(t,b)=>`<details open><summary>${t}</summary><div style="margin-top:8px">${b}</div></details>`;
+  const feeHtml=canFees()?sec('الأتعاب والحسابات',(byCase.length?feeTable(byCase)+cards([['المتفق عليه',moneyV54(sum(byCase,totalOf))],['المدفوع',moneyV54(sum(byCase,paidOf)),'green'],['المتبقي',moneyV54(sum(byCase,remOf)),sum(byCase,remOf)>0?'red':'green']]):'<div class="empty">لا يوجد اتفاق مربوط برقم هذه القضية.</div>')+(own.length&&own.length!==byCase.length?`<div class="mk2-muted">إجمالي اتفاقات الموكل كله: متفق ${moneyV54(sum(own,totalOf))} · مدفوع ${moneyV54(sum(own,paidOf))} · متبقي ${moneyV54(sum(own,remOf))}. الربط هنا بالتطابق مع رقم القضية فقط، ولا يتم ربط تلقائي.</div>`:'')):'';
+  const p=document.createElement('section');p.id='mkCasePanel';p.className='panel mk2-case';p.style.marginTop='12px';
+  p.innerHTML=`<h3>الملف المرتبط بالقضية</h3><div class="mk2-muted">عرض فقط. كل البيانات من نفس السجلات الحالية.</div>`+
+   sec('الموكل',client?`<p><b>${E(client.name)}</b> · ${E(client.phone||'—')}</p><button class="btn light" type="button" onclick="openClientProfile(${JSON.stringify(client.name).replace(/"/g,'&quot;')})">فتح ملف الموكل</button>`:`<div class="empty">الموكل غير مسجل في قائمة العملاء (${E(k.client||'—')}).</div>`)+
+   sec(`الجلسات (${hist.length})`,hist.length?table(['التاريخ','الرول','القرار','سبب التأجيل'],hist.slice(0,30).map(h=>`<tr><td>${E(h.date||'—')}</td><td>${E(h.roll||'—')}</td><td>${E(h.decision||'—')}</td><td>${E(h.reason||'—')}</td></tr>`)):'<div class="empty">لا توجد جلسات سابقة مسجلة.</div>')+
+   feeHtml+
+   sec(`المصروفات (${exps.length})`,exps.length?table(['التاريخ','البند','البيان','المبلغ'],exps.map(x=>`<tr><td>${E(x.date||'—')}</td><td>${E(x.category||'—')}</td><td>${E(x.title||'—')}</td><td>${moneyV54(x.amount)}</td></tr>`))+`<div class="mk2-muted">المجموع: ${moneyV54(sum(exps,x=>Number(x.amount)||0))}</div>`:'<div class="empty">لا توجد مصروفات معتمدة مربوطة بهذه القضية.</div>')+
+   sec(`المستندات (${docs.length})`,docs.length?'<ul>'+docs.slice(0,15).map(d=>`<li>${E(d.file_name||'ملف')} <span class="mk2-muted">${E(d.category||'')}</span></li>`).join('')+'</ul><div class="mk2-muted">للفتح أو الرفع: من ملف الموكل.</div>':'<div class="empty">لا توجد مستندات محملة لهذا الموكل في الذاكرة. افتح ملف الموكل للتفاصيل.</div>');
+  app.appendChild(p);
+ }
+
+ /* 3) Fees overview page (admin / office manager). */
+ const st=window.__mkFeeOv={q:'',only:true};
+ const ownerName=a=>a.client||'—';
+ function feeRows(){
+  const q=N(st.q);
+  return agreements().map(a=>({a,t:totalOf(a),p:paidOf(a),r:remOf(a)})).filter(x=>(!st.only||x.r>0)&&(!q||[x.a.client,x.a.caseNumber,x.a.description].some(v=>N(v).includes(q)))).sort((x,y)=>y.r-x.r);
+ }
+ function feeBody(){
+  const rows=feeRows();const box=document.getElementById('mkFeeBody');if(!box)return;
+  const t=sum(rows,x=>x.t),p=sum(rows,x=>x.p),r=sum(rows,x=>x.r);
+  box.innerHTML=cards([['عدد الاتفاقات',rows.length],['المتفق عليه',moneyV54(t)],['المدفوع',moneyV54(p),'green'],['المتبقي',moneyV54(r),r>0?'red':'green']])+(rows.length?table(['الموكل','الاتفاق','القضية','المتفق عليه','المدفوع','المتبقي','الاستحقاق','آخر دفعة','الملف'],rows.map(x=>{const c=(db.clients||[]).find(z=>z.name===x.a.client);return `<tr><td>${E(ownerName(x.a))}</td><td>${E(x.a.description||'اتفاق أتعاب')}</td><td>${E(x.a.caseNumber||'—')}</td><td>${moneyV54(x.t)}</td><td>${moneyV54(x.p)}</td><td><b style="color:${x.r>0?'#c0392b':'#13834a'}">${moneyV54(x.r)}</b></td><td>${E(x.a.dueDate||'—')}</td><td>${E(lastPay(x.a)||'—')}</td><td>${c?`<button class="btn light" type="button" data-mk2client="${E(c.name)}">فتح</button>`:'—'}</td></tr>`;})):'<div class="empty">لا توجد اتفاقات مطابقة.</div>');
+ }
+ function feeCsv(){
+  const rows=feeRows();const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const lines=[['الموكل','الاتفاق','القضية','المتفق عليه','المدفوع','المتبقي','الاستحقاق','آخر دفعة'].map(q).join(',')].concat(rows.map(x=>[x.a.client,x.a.description,x.a.caseNumber,x.t,x.p,x.r,x.a.dueDate,lastPay(x.a)].map(q).join(',')));
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(blob);const l=document.createElement('a');l.href=u;l.download='maktaby-fees-'+today()+'.csv';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
+ }
+ function renderFees(){
+  const app=document.getElementById('app');if(!app)return;
+  setV54Page('الأتعاب والمتبقي','feesOverview');
+  app.innerHTML=`<div class="pagehead"><div><h1>الأتعاب والمتبقي</h1><div class="sub">كل اتفاقات الأتعاب: المتفق عليه والمدفوع والمتبقي لكل موكل وقضية. عرض فقط، لا يغيّر أي بيانات.</div></div><div class="actions"><button class="btn light" type="button" id="mkFeeCsv">تصدير CSV</button></div></div><section class="panel"><div class="toolbar"><input class="search" id="mkFeeQ" type="search" placeholder="بحث بالموكل أو رقم القضية أو الاتفاق..." value="${E(st.q)}"><label style="white-space:nowrap"><input type="checkbox" id="mkFeeOnly" ${st.only?'checked':''}> عليهم متبقي فقط</label></div><div id="mkFeeBody"></div></section>`;
+  document.getElementById('mkFeeQ').addEventListener('input',e=>{st.q=e.target.value;feeBody();});
+  document.getElementById('mkFeeOnly').addEventListener('change',e=>{st.only=e.target.checked;feeBody();});
+  document.getElementById('mkFeeCsv').addEventListener('click',feeCsv);
+  document.getElementById('mkFeeBody').addEventListener('click',e=>{const b=e.target.closest('[data-mk2client]');if(b)openClientProfile(b.dataset.mk2client);});
+  feeBody();
+ }
+ const nav=document.getElementById('nav');
+ if(nav&&!nav.querySelector('[data-page="feesOverview"]')){const b=document.createElement('button');b.type='button';b.dataset.page='feesOverview';b.textContent='الأتعاب والمتبقي';b.style.display='none';nav.appendChild(b);}
+ const navTimer=setInterval(()=>{if(currentUser){clearInterval(navTimer);const b=document.querySelector('#nav [data-page="feesOverview"]');if(b)b.style.display=canFees()?'':'none';}},500);
+ document.addEventListener('click',e=>{const b=e.target.closest('#nav [data-page="feesOverview"]');if(!b)return;e.preventDefault();e.stopImmediatePropagation();if(!canFees()){alert('هذه الصفحة متاحة للمدير ومديرة المكتب فقط.');return;}page='feesOverview';render();},true);
+ const baseRender=render;
+ render=function(){
+  if(page==='feesOverview'){if(canFees()){renderFees();return;}page='dashboard';}
+  if(page==='income'&&!canFees()){alert('صفحة الوارد متاحة لصاحب المكتب فقط.');page='dashboard';}
+  const r=baseRender.apply(this,arguments);
+  try{const inc=document.querySelector('#nav [data-page="income"]');if(inc&&!canFees())inc.style.display='none';}catch(e){}
+  if(page==='cases'){try{enhanceCase();}catch(e){console.error('MAKTABY batch2 case panel',e);}}
+  return r;
+ };
+})();
+
+typeof checks!=='undefined'&&console.log(`PASS ${checks.length}/${checks.length} web candidate source checks`);
+if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
+
+/* MAKTABY PRO 10 — calm floating UI: one small hub button instead of four floating items */
+(function(){
+ if(window.__maktabyHub10)return;window.__maktabyHub10=true;
+ const st=document.createElement('style');st.textContent=`
+ html body #mkFloatingNotifBtn,html body #mkCourtFab,html body #maktabyWeeklyBackupNotice{display:none!important}
+ html body #maktabyV85Status:not([data-kind="error"]){display:none!important}
+ html body .footer-connection{position:fixed!important;right:12px!important;bottom:14px!important;left:auto!important;width:12px!important;height:12px!important;min-width:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:50%!important;background:transparent!important;box-shadow:none!important;font-size:0!important;z-index:9000!important;overflow:hidden!important;opacity:.7}
+ html body .footer-connection i{width:12px!important;height:12px!important;display:block!important}
+ html body .footer-connection b,html body .footer-connection strong{display:none!important}
+ html body .footer-connection[data-bad="1"] i{background:#d93636!important}
+ #mkHubBtn{position:fixed;left:14px;bottom:14px;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(20,40,63,.86);color:#fff;font:700 22px/1 Tahoma,Arial,sans-serif;display:flex;align-items:center;justify-content:center;padding:0 0 6px;cursor:pointer;z-index:12010;box-shadow:0 3px 10px rgba(7,29,53,.25)}
+ #mkHubBtn .mk-hub-badge{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 4px;border:2px solid #fff;border-radius:12px;background:#d93636;color:#fff;font:800 10px/15px Tahoma,Arial,sans-serif;text-align:center;padding-bottom:0}
+ #mkHubBtn .mk-hub-dot{position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:#d6a744;border:2px solid #fff}
+ #mkHubMenu{position:fixed;left:14px;bottom:66px;z-index:12011;min-width:210px;max-width:calc(100vw - 28px);background:#fff;border:1px solid #d9e2ec;border-radius:14px;box-shadow:0 12px 36px rgba(7,29,53,.25);padding:6px;direction:rtl;display:none}
+ #mkHubMenu.open{display:block}
+ #mkHubMenu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:12px;border-radius:10px;font:700 14px Tahoma,Arial,sans-serif;color:#14283f;cursor:pointer;text-align:right}
+ #mkHubMenu button:hover,#mkHubMenu button:active{background:#f1f4f8}
+ #mkHubMenu .mk-hub-n{margin-right:auto;background:#d93636;color:#fff;border-radius:12px;padding:1px 8px;font-size:11px}
+ #mkHubMenu .mk-hub-d{margin-right:auto;width:9px;height:9px;border-radius:50%;background:#d6a744}
+ @media print{#mkHubBtn,#mkHubMenu{display:none!important}}`;
+ document.head.appendChild(st);
+ const $=id=>document.getElementById(id);
+ let btn,menu;
+ function unread(){const c=$('mkFloatingNotifCount');return c?parseInt(c.textContent,10)||0:0;}
+ function backupDue(){return !!$('maktabyWeeklyBackupNotice');}
+ function paint(){if(!btn)return;btn.querySelectorAll('.mk-hub-badge,.mk-hub-dot').forEach(e=>e.remove());const n=unread();if(n){const b=document.createElement('span');b.className='mk-hub-badge';b.textContent=n>99?'99+':String(n);btn.appendChild(b);}else if(backupDue()){const d=document.createElement('span');d.className='mk-hub-dot';btn.appendChild(d);}
+  const f=document.querySelector('.footer-connection'),cs=$('cloudStatus');if(f&&cs)f.dataset.bad=/تعذر|غير متصل/.test(cs.textContent)?'1':'0';}
+ function build(){menu.innerHTML='';const items=[];
+  if($('mkFloatingNotifBtn'))items.push(['🔔','التنبيهات',unread()?`<span class="mk-hub-n">${unread()}</span>`:'',()=>$('mkFloatingNotifBtn').click()]);
+  if($('mkCourtFab'))items.push(['⚖','وضع المحكمة','',()=>$('mkCourtFab').click()]);
+  if(backupDue())items.push(['💾','نسخة احتياطية أسبوعية','<span class="mk-hub-d"></span>',()=>{const b=$('maktabyBackupNow');if(b)b.click();}]);
+  items.forEach(([ic,label,extra,fn])=>{const b=document.createElement('button');b.type='button';b.innerHTML=`<span aria-hidden="true">${ic}</span><span>${label}</span>${extra}`;b.addEventListener('click',e=>{e.stopPropagation();menu.classList.remove('open');btn.setAttribute('aria-expanded','false');fn();setTimeout(paint,150);});menu.appendChild(b);});}
+ function mount(){if($('mkHubBtn')||!document.body)return;
+  btn=document.createElement('button');btn.type='button';btn.id='mkHubBtn';btn.textContent='⋯';btn.setAttribute('aria-label','القائمة السريعة: التنبيهات ووضع المحكمة');btn.setAttribute('aria-haspopup','true');btn.setAttribute('aria-expanded','false');
+  menu=document.createElement('div');menu.id='mkHubMenu';menu.setAttribute('role','menu');
+  document.body.append(btn,menu);
+  btn.addEventListener('click',e=>{e.stopPropagation();const open=!menu.classList.contains('open');if(open)build();menu.classList.toggle('open',open);btn.setAttribute('aria-expanded',String(open));});
+  document.addEventListener('click',e=>{if(menu.classList.contains('open')&&!menu.contains(e.target)&&e.target!==btn){menu.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.classList.remove('open');btn.setAttribute('aria-expanded','false');}});
+  paint();}
+ function start(){mount();setInterval(()=>{mount();paint();},1500);}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
