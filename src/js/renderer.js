@@ -3574,3 +3574,168 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  function start(){mount();setInterval(()=>{mount();paint();},1500);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+/* MAKTABY PRO 10 — Batch 3: faster navigation (back button, quick search, bottom bar on phone, recent items, faster forms). Display/navigation only; no data or permission code is touched. */
+(function(){
+ if(window.__maktabyBatch3)return;window.__maktabyBatch3=true;
+ const $id=id=>document.getElementById(id);
+ const isPhone=()=>window.matchMedia&&window.matchMedia('(max-width:760px)').matches;
+ const st=document.createElement('style');st.textContent=`
+ #mkBottomBar{position:fixed;left:0;right:0;bottom:0;z-index:9000;display:none;direction:rtl;background:#fff;border-top:1px solid #d9e2ec;box-shadow:0 -4px 14px rgba(7,29,53,.1);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+ #mkBottomBar button{flex:1;border:0;background:none;padding:7px 2px 5px;font:700 11px Tahoma,Arial,sans-serif;color:#51657d;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;border-radius:10px}
+ #mkBottomBar button i{font-style:normal;font-size:19px;line-height:1}
+ #mkBottomBar button.on{color:#14283f;background:#eaf0f8}
+ #mkMoreSheet{position:fixed;left:0;right:0;bottom:0;z-index:9100;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -10px 40px rgba(7,29,53,.3);padding:12px 12px calc(72px + env(safe-area-inset-bottom));direction:rtl;display:none;max-height:75vh;overflow:auto}
+ #mkMoreSheet.open{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ #mkMoreSheet button{border:1px solid #dbe5f1;background:#f7faff;border-radius:11px;padding:13px 8px;font:700 13px Tahoma,Arial,sans-serif;color:#14283f;cursor:pointer}
+ #mkMoreScrim{position:fixed;inset:0;z-index:9050;background:rgba(4,17,33,.35);display:none}
+ #mkMoreScrim.open{display:block}
+ #mkSearchBtn{border:1px solid #d7e2ef;background:#f7faff;color:#14283f;border-radius:10px;padding:8px 13px;font:700 13px Tahoma,Arial,sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+ #mkRecent{margin:0 0 12px;padding:10px 12px;border:1px solid #dbe5f1;border-radius:12px;background:#fff;direction:rtl}
+ #mkRecent b{font-size:12px;color:#51657d;display:block;margin-bottom:7px}
+ #mkRecent .mk-chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px}
+ #mkRecent button{white-space:nowrap;border:1px solid #d7e2ef;background:#f7faff;border-radius:18px;padding:7px 13px;font:700 12px Tahoma,Arial,sans-serif;color:#14283f;cursor:pointer}
+ #form .mk-addmore{margin-inline-start:8px}
+ @media(max-width:760px){
+  #mkBottomBar{display:flex}
+  body{padding-bottom:68px}
+  html body #mkHubBtn{bottom:76px}
+  html body #mkHubMenu{bottom:128px}
+  html body .footer-connection{bottom:78px!important}
+  html body #mkFloatingNotifPanel{bottom:128px!important;max-height:58vh!important}
+ }
+ body:has(#modal.show) #mkBottomBar,body:has(#modal.show) #mkHubBtn,body:has(#modal.show) #mkMoreSheet,body:has(#modal.show) #mkMoreScrim{display:none!important}
+ @media print{#mkBottomBar,#mkMoreSheet,#mkSearchBtn,#mkRecent{display:none!important}}`;
+ document.head.appendChild(st);
+
+ /* 1) Back button: sections and client files get history entries; back closes an open form first. */
+ let lastKey='',restoring=false,firstDone=false,closingByBack=false;
+ const keyNow=()=>String(page)+'|'+(page==='clientProfile'?String(selectedClientNameV54||''):'');
+ function pushIfChanged(){
+  if(restoring)return;const k=keyNow();if(k===lastKey)return;lastKey=k;
+  const s={mk:1,page:page,client:page==='clientProfile'?selectedClientNameV54:null};
+  try{if(!firstDone){firstDone=true;history.replaceState(s,'');}else history.pushState(s,'');}catch(e){}
+ }
+ window.addEventListener('popstate',e=>{
+  const modal=$id('modal');
+  if(modal&&modal.classList.contains('show')){closingByBack=true;try{closeModal();}finally{closingByBack=false;}
+   if(!(e.state&&e.state.mkModal)){/* we left the modal entry: stay on the same section */}
+   return;}
+  const s=e.state;if(!s||!s.mk||s.mkModal)return;
+  restoring=true;
+  try{if(s.page==='clientProfile'&&s.client){selectedClientNameV54=s.client;page='clientProfile';}else{page=s.page;}render();lastKey=keyNow();}
+  catch(err){console.error('MAKTABY back',err);}finally{restoring=false;}
+ });
+ const baseRender=render;
+ render=function(){const r=baseRender.apply(this,arguments);try{pushIfChanged();}catch(e){}try{afterRender();}catch(e){console.error('MAKTABY batch3 render',e);}return r;};
+ /* opening a form adds one history entry so the back button closes it; closing it by buttons removes that entry */
+ const baseOpenForm=openForm;
+ openForm=function(){const r=baseOpenForm.apply(this,arguments);try{const m=$id('modal');if(m&&m.classList.contains('show')&&!(history.state&&history.state.mkModal))history.pushState({mk:1,mkModal:1,page:page},'');}catch(e){}return r;};
+ const baseClose=closeModal;
+ closeModal=function(){const __again=!!window.__mkAddAnother&&editingClientIndexV54===null,__t=formType;const r=baseClose.apply(this,arguments);try{if(!closingByBack&&history.state&&history.state.mkModal){closingByBack=true;history.back();setTimeout(()=>{closingByBack=false;},300);}}catch(e){}try{if(__again){window.__mkAddAnother=false;if(__t&&typeof fields==='object'&&fields[__t])setTimeout(()=>{try{openForm(__t);}catch(e){}},120);}}catch(e){}return r;};
+
+ /* 2) Quick search: opens the existing command palette (works on phone). */
+ function openSearch(){
+  if(window.MAKTABY_COMMAND_PALETTE&&window.MAKTABY_COMMAND_PALETTE.open){window.MAKTABY_COMMAND_PALETTE.open();return;}
+  document.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true,cancelable:true}));
+ }
+ window.mkOpenSearch=openSearch;
+
+ /* 4) Recent items (clients and cases), saved on this device only. */
+ const RK='mk_recent_v1';
+ const recents=()=>{try{return JSON.parse(localStorage.getItem(RK)||'[]');}catch(_){return [];}};
+ function addRecent(it){try{const l=recents().filter(x=>!(x.t===it.t&&x.k===it.k));l.unshift(it);localStorage.setItem(RK,JSON.stringify(l.slice(0,5)));}catch(_){}}
+ const baseOpenClient=openClientProfile;
+ openClientProfile=function(name){try{if(name)addRecent({t:'client',k:String(name),l:String(name)});}catch(e){}return baseOpenClient.apply(this,arguments);};
+ if(typeof window.selectCaseCompactV10==='function'){const baseSel=window.selectCaseCompactV10;window.selectCaseCompactV10=function(i){try{const c=(db.cases||[])[Number(i)];if(c&&c.number)addRecent({t:'case',k:String(c.number)+'|'+String(c.client||''),l:'قضية '+c.number+(c.client?' · '+c.client:'')});}catch(e){}return baseSel.apply(this,arguments);};}
+ function openRecent(it){
+  if(it.t==='client'){openClientProfile(it.k);return;}
+  const [num,cl]=String(it.k).split('|');const i=(db.cases||[]).findIndex(c=>String(c.number)===num&&String(c.client||'')===cl);
+  if(i<0){alert('هذه القضية لم تعد موجودة في القائمة.');return;}
+  page='cases';window.selectCaseCompactV10?window.selectCaseCompactV10(i):render();
+ }
+ function paintRecent(){
+  const app=$id('app');if(!app||page!=='dashboard')return;
+  const old=$id('mkRecent');if(old)old.remove();
+  const l=recents();if(!l.length)return;
+  const d=document.createElement('div');d.id='mkRecent';d.innerHTML='<b>فتحتها مؤخرًا</b><div class="mk-chips"></div>';
+  const chips=d.querySelector('.mk-chips');
+  l.forEach(it=>{const b=document.createElement('button');b.type='button';b.textContent=(it.t==='client'?'👤 ':'⚖ ')+it.l;b.addEventListener('click',()=>openRecent(it));chips.appendChild(b);});
+  app.insertBefore(d,app.firstChild);
+ }
+
+ /* 3) Bottom bar on phone, with the rest of the sections under "المزيد". */
+ const MAIN=[['dashboard','الرئيسية','⌂'],['cases','القضايا','⚖'],['clients','العملاء','♟'],['tasks','المهام','▤']];
+ let bar,sheet,scrim;
+ function navBtn(p){return document.querySelector('#nav [data-page="'+p+'"]');}
+ function closeMore(){sheet&&sheet.classList.remove('open');scrim&&scrim.classList.remove('open');}
+ function buildBar(){
+  if($id('mkBottomBar')||!document.body)return;
+  bar=document.createElement('nav');bar.id='mkBottomBar';bar.setAttribute('aria-label','التنقل السريع');
+  MAIN.forEach(([p,l,ic])=>{const b=document.createElement('button');b.type='button';b.dataset.p=p;b.innerHTML='<i aria-hidden="true">'+ic+'</i>'+l;b.addEventListener('click',()=>{closeMore();const n=navBtn(p);if(n)n.click();});bar.appendChild(b);});
+  const s=document.createElement('button');s.type='button';s.innerHTML='<i aria-hidden="true">🔍</i>بحث';s.addEventListener('click',()=>{closeMore();openSearch();});bar.appendChild(s);
+  const m=document.createElement('button');m.type='button';m.dataset.p='more';m.innerHTML='<i aria-hidden="true">☰</i>المزيد';m.addEventListener('click',()=>{if(sheet.classList.contains('open')){closeMore();return;}buildSheet();sheet.classList.add('open');scrim.classList.add('open');});bar.appendChild(m);
+  sheet=document.createElement('div');sheet.id='mkMoreSheet';scrim=document.createElement('div');scrim.id='mkMoreScrim';scrim.addEventListener('click',closeMore);
+  document.body.append(scrim,sheet,bar);
+ }
+ function buildSheet(){
+  sheet.innerHTML='';
+  document.querySelectorAll('#nav button[data-page]').forEach(n=>{
+   if(MAIN.some(x=>x[0]===n.dataset.page))return;
+   if(getComputedStyle(n).display==='none')return;
+   const b=document.createElement('button');b.type='button';b.textContent=(n.textContent||'').trim();b.addEventListener('click',()=>{closeMore();n.click();});sheet.appendChild(b);
+  });
+ }
+ function paintBar(){if(!bar)return;bar.querySelectorAll('button[data-p]').forEach(b=>{const p=b.dataset.p;b.classList.toggle('on',p===page||(p==='clients'&&page==='clientProfile'));});}
+ function mountSearchBtn(){
+  if($id('mkSearchBtn'))return;const top=document.querySelector('.reference-topbar');if(!top)return;
+  const b=document.createElement('button');b.type='button';b.id='mkSearchBtn';b.innerHTML='🔍 <span>بحث سريع</span>';b.setAttribute('aria-label','بحث سريع عن موكل أو قضية أو قسم');b.addEventListener('click',openSearch);top.appendChild(b);
+ }
+ function afterRender(){buildBar();paintBar();mountSearchBtn();paintRecent();}
+
+ /* 5) Faster forms: focus first field, Enter moves to the next field, keyboard hints, save and add another. */
+ const FORM_OK=new Set(['client','case','announcement','task','enumeration','transaction','income','expense']);
+ function enhanceForm(){
+  const root=$id('formFields');if(!root||root.dataset.mkFast==='1')return;root.dataset.mkFast='1';
+  root.querySelectorAll('input[name="amount"]').forEach(i=>{i.setAttribute('inputmode','decimal');});
+  root.querySelectorAll('input[name="phone"],input[name="phone2"]').forEach(i=>{i.setAttribute('inputmode','tel');i.setAttribute('autocomplete','tel');});
+  root.querySelectorAll('input[name="nationalId"]').forEach(i=>i.setAttribute('inputmode','numeric'));
+  const first=root.querySelector('input:not([type=hidden]):not([type=checkbox]):not([disabled]),select,textarea');
+  if(first&&!first.value)setTimeout(()=>{try{first.focus({preventScroll:false});}catch(e){}},80);
+  const form=$id('form');
+  if(form&&!form.querySelector('.mk-addmore')&&FORM_OK.has(formType)&&editingClientIndexV54===null&&!(typeof editingCaseIndex!=='undefined'&&editingCaseIndex!==null)){
+   const sub=form.querySelector('button[type=submit],button.goldbtn,button:not([type=button])');
+   if(sub){const b=document.createElement('button');b.type='button';b.className='btn light mk-addmore';b.textContent='حفظ وإضافة آخر';
+    b.addEventListener('click',()=>{window.__mkAddAnother=true;clearTimeout(window.__mkAddT);window.__mkAddT=setTimeout(()=>{window.__mkAddAnother=false;},5000);if(form.requestSubmit)form.requestSubmit(sub);else sub.click();});
+    sub.after(b);}
+  }
+ }
+ document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.shiftKey||e.ctrlKey||e.isComposing)return;
+  const t=e.target;if(!t||!t.closest||!t.closest('#formFields'))return;
+  if(t.tagName!=='INPUT'||t.hasAttribute('list'))return;
+  const type=(t.getAttribute('type')||'text').toLowerCase();if(['button','submit','checkbox','radio','file'].includes(type))return;
+  const all=[...document.querySelectorAll('#formFields input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([disabled]),#formFields select:not([disabled]),#formFields textarea:not([disabled])')].filter(x=>x.offsetParent!==null);
+  const i=all.indexOf(t);if(i<0||i===all.length-1)return;
+  e.preventDefault();all[i+1].focus();
+ },true);
+ const mo=new MutationObserver(()=>{const m=$id('modal');if(m&&m.classList.contains('show')){const r=$id('formFields');if(r&&r.dataset.mkFast!=='1')enhanceForm();}else{const r=$id('formFields');if(r)r.dataset.mkFast='';}});
+ function startFormWatch(){const m=$id('modal');if(m)mo.observe(m,{attributes:true,attributeFilter:['class']});const f=$id('formFields');if(f)mo.observe(f,{childList:true});}
+
+ /* 6) Desktop shortcuts: "/" opens search; G then H/C/L/T goes home/cases/clients/tasks. */
+ let gAt=0;
+ document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;const t=e.target;
+  if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;
+  const m=$id('modal');if(m&&m.classList.contains('show'))return;
+  if(typeof currentUser==='undefined'||!currentUser)return;
+  const k=e.key.toLowerCase();
+  if(k==='/'){e.preventDefault();openSearch();return;}
+  if(k==='g'){gAt=Date.now();return;}
+  if(Date.now()-gAt<1200){const map={h:'dashboard',c:'cases',l:'clients',t:'tasks'};if(map[k]){gAt=0;const n=navBtn(map[k]);if(n&&getComputedStyle(n).display!=='none'){e.preventDefault();n.click();}}}
+ });
+
+ document.addEventListener('invalid',()=>{window.__mkAddAnother=false;},true);
+ function start(){startFormWatch();setInterval(()=>{try{buildBar();paintBar();mountSearchBtn();startFormWatch();}catch(e){}},2000);}
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
