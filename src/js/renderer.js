@@ -3528,8 +3528,8 @@ applyTab(app,'overview');
  };
 })();
 
-console.log(`PASS ${checks.length}/${checks.length} web candidate source checks`);
-for(const c of checks)console.log(' - '+c);
+typeof checks!=='undefined'&&console.log(`PASS ${checks.length}/${checks.length} web candidate source checks`);
+if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
 
 /* MAKTABY PRO 10 — calm floating UI: one small hub button instead of four floating items */
 (function(){
