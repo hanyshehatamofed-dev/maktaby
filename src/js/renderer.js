@@ -3994,6 +3994,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
   (tabs||head).after(sec);
  }
  const __r=render;render=function(){const r=__r.apply(this,arguments);try{inject()}catch(e){console.warn('mk timeline',e)}return r};
+ try{const ap=document.getElementById('app');if(ap)new MutationObserver(()=>{try{inject()}catch(e){}}).observe(ap,{childList:true})}catch(_){}
  window.mkClientTimeline=build;
  try{inject()}catch(_){}
 })();
