@@ -17,7 +17,7 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_weKDTbM9ZxpZ0fSEFZbjew_m9ZrOvfL";
 (function installMaktabyReadDeduper(){
  const nativeFetch=window.fetch.bind(window);
  const recent=new Map();
- const windowMs=20;
+ const windowMs=20;const T0=Date.now();const winNow=()=>Date.now()-T0<30000?3000:windowMs;
  const metrics=window.__MAKTABY_REQUEST_METRICS={eligible:0,dispatched:0,deduplicated:0,windowMs};
  function headerKey(input,init){
    const headers=new Headers(input instanceof Request?input.headers:undefined);
@@ -28,17 +28,17 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_weKDTbM9ZxpZ0fSEFZbjew_m9ZrOvfL";
    let url,method;
    try{url=new URL(typeof input==='string'||input instanceof URL?String(input):input.url,location.href);method=String((init&&init.method)||(input instanceof Request?input.method:'GET')).toUpperCase();}
    catch(_){return nativeFetch(input,init);}
-   if(!['GET','HEAD'].includes(method)||(init&&init.signal)||url.origin!==SUPABASE_URL||!url.pathname.startsWith('/rest/v1/'))return nativeFetch(input,init);
+   if(!['GET','HEAD'].includes(method)||(init&&init.signal)||url.origin!==SUPABASE_URL||!url.pathname.startsWith('/rest/v1/')){if(url.origin===SUPABASE_URL&&!['GET','HEAD'].includes(method))recent.clear();return nativeFetch(input,init);}
    metrics.eligible++;
    const key=method+' '+url.href+' '+headerKey(input,init)+' '+String((init&&init.credentials)||'same-origin')+' '+String((init&&init.cache)||'default');
    const now=Date.now();
    const prior=recent.get(key);
-   if(prior&&now-prior.startedAt<=windowMs){metrics.deduplicated++;return prior.promise.then(response=>response.clone());}
+   if(prior&&now-prior.startedAt<=winNow()){metrics.deduplicated++;return prior.promise.then(response=>response.clone());}
    const entry={startedAt:now,promise:null};
    metrics.dispatched++;
    entry.promise=nativeFetch(input,init).then(response=>response).catch(error=>{if(recent.get(key)===entry)recent.delete(key);throw error;});
    recent.set(key,entry);
-   entry.promise.then(()=>setTimeout(()=>{if(recent.get(key)===entry)recent.delete(key);},windowMs),()=>{});
+   entry.promise.then(()=>setTimeout(()=>{if(recent.get(key)===entry)recent.delete(key);},winNow()),()=>{});
    return entry.promise.then(response=>response.clone());
  }
  window.__maktabyFetch=interceptedFetch;
@@ -3763,4 +3763,57 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  }
  const prev=render;
  render=function(){const r=prev.apply(this,arguments);fix();return r;};
+})();
+
+/* ===== MAKTABY Batch 4: faster start + cleaner numbers ===== */
+(function(){
+ if(window.__mkBatch4)return;window.__mkBatch4=true;
+ /* Latin digits in every Arabic date/time/number the app prints, so numbers look the same everywhere. */
+ try{
+  const fix=l=>{if(l===undefined||l===null)return l;const s=String(Array.isArray(l)?l[0]:l);if(!/^ar/i.test(s)||/-nu-/.test(s))return l;return s+(/-u-/.test(s)?'':'-u')+'-nu-latn';};
+  ['toLocaleDateString','toLocaleTimeString','toLocaleString'].forEach(m=>{const o=Date.prototype[m];Date.prototype[m]=function(l,...r){return o.call(this,fix(l),...r);};});
+  const on=Number.prototype.toLocaleString;Number.prototype.toLocaleString=function(l,...r){return on.call(this,fix(l),...r);};
+  const d=new Date(),w=document.getElementById('topWeekday'),f=document.getElementById('topFullDate');
+  if(w)w.textContent=d.toLocaleDateString('ar-EG',{weekday:'long'});
+  if(f)f.textContent=d.toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'});
+ }catch(_){}
+ /* Instant start: a returning, still-signed-in user sees the last saved office data at once, while the live data loads in the background. */
+ const PK='mkProfileCache1';
+ const wipe=()=>{try{localStorage.removeItem(PK);}catch(_){}};
+ let provisional=false;
+ const banner=(on)=>{let b=document.getElementById('mkSyncBanner');if(!on){if(b)b.remove();return;}if(!b){b=document.createElement('div');b.id='mkSyncBanner';b.textContent='جارٍ تحديث بيانات المكتب… التعديل يتاح خلال ثوانٍ';b.style.cssText='position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:9999;background:#14283f;color:#fff;font-size:12px;padding:5px 14px;border-radius:0 0 10px 10px;box-shadow:0 2px 8px #0003';document.body.appendChild(b);}};
+ try{
+  const prev=loadCloudState;
+  loadCloudState=async function(){
+   const r=await prev.apply(this,arguments);
+   try{if(currentUser&&currentUser.id)localStorage.setItem(PK,JSON.stringify({id:currentUser.id,name:currentUser.name,role:currentUser.role}));}catch(_){}
+   if(provisional){provisional=false;banner(false);}
+   return r;
+  };
+  const guard=(name)=>{const o=window[name];if(typeof o!=='function')return;window[name]=function(){if(provisional)throw new Error('جارٍ تحديث بيانات المكتب. انتظر ثواني ثم أعد المحاولة.');return o.apply(this,arguments);};};
+  ['openForm','save','saveCloudState'].forEach(guard);
+  const lo=logout;logout=async function(){const r=await lo.apply(this,arguments);if(!currentUser)wipe();return r;};
+  if(window.sb&&sb.auth&&sb.auth.onAuthStateChange)sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT')wipe();});
+ }catch(_){}
+ (async function(){
+  try{
+   let p=null;try{p=JSON.parse(localStorage.getItem(PK)||'null');}catch(_){}
+   if(!p||!p.id||!window.sb||!localStorage.getItem(STORAGE_KEY))return;
+   const {data:{session}}=await sb.auth.getSession();
+   if(!session||session.user.id!==p.id){wipe();return;}
+   if(currentUser)return;
+   currentUser={id:p.id,email:session.user.email,name:p.name,role:p.role};
+   provisional=true;
+   if($('#topUserName'))$('#topUserName').textContent=currentUser.name;
+   $('#loginScreen').style.display='none';
+   $('#userBadge').innerHTML=esc(currentUser.name)+' — <a href="#" onclick="logout();return false" style="color:inherit">خروج</a>';
+   $('#importBtn').style.display=isAdmin()?'inline-block':'none';$('#backupBtn').style.display=isAdmin()?'inline-block':'none';
+   if($('#recoveryBackupBtn'))$('#recoveryBackupBtn').style.display=isAdmin()?'inline-block':'none';
+   if($('#recoveryHealthBtn'))$('#recoveryHealthBtn').style.display=isAdmin()?'inline-block':'none';
+   $('#syncBtn').style.display=canManageOffice()?'inline-block':'none';
+   banner(true);render();
+   /* If the live load has not finished in 25s (offline, expired, or account disabled), fall back to the normal screen. */
+   setTimeout(()=>{if(provisional){provisional=false;banner(false);}},25000);
+  }catch(_){}
+ })();
 })();
