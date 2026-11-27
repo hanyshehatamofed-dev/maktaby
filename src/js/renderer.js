@@ -3914,3 +3914,87 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
   };
  };
 })();
+
+/* ===== Client timeline (internal, read-only, added Nov 27) ===== */
+;(function(){
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const nk=s=>String(s==null?'':s).replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
+ const D=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?m[0]:''};
+ const short=(s,n)=>{s=String(s==null?'':s).replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n)+'…':s};
+ const TYPES={case:['قضايا','⚖'],session:['جلسات','📅'],ann:['إعلانات','📨'],task:['مهام','✔'],poa:['توكيلات','📜'],doc:['مستندات','📎']};
+ function matcher(name){
+  const raw=String(name||'').trim(),key=nk(raw),multi=key.split(' ').length>=2;
+  return function(v){
+   const arr=(Array.isArray(v)?v:[v]).map(x=>String(x==null?'':x)).filter(Boolean);
+   let best='';
+   for(const s0 of arr){
+    const s=s0.trim();if(!s)continue;
+    if(s===raw)return 'exact';
+    const k=nk(s);if(k===key){best='norm';continue}
+    if(multi&&best!=='norm'&&(k.includes(key)||(k.split(' ').length>=2&&key.includes(k))))best='review';
+   }
+   return best;
+  };
+ }
+ function build(name){
+  const m=matcher(name),ev=[];
+  const push=(e,mt)=>{if(mt){e.match=mt;ev.push(e)}};
+  const caseInfo=c=>[c.court,c.number?'رقم '+c.number:'',c.circuit,c.opponent?'ضد '+short(Array.isArray(c.opponents)&&c.opponents.length?c.opponents.join('، '):c.opponent,60):''].filter(Boolean).join(' · ');
+  const cases=[].concat((db.cases||[]).map(c=>[c,false]),(db.caseArchive||[]).map(c=>[c,true]));
+  cases.forEach(([c,arch])=>{
+   if(!c)return;const mt=m([c.client].concat(Array.isArray(c.clients)?c.clients:[]));if(!mt)return;
+   const info=caseInfo(c);
+   (c.history||[]).forEach(h=>{const d=D(h.date);if(!d)return;push({date:d,type:'session',title:'جلسة'+(h.reason?' · '+short(h.reason,60):''),detail:[h.decision?'القرار: '+short(h.decision,120):'',info].filter(Boolean).join(' — ')},mt)});
+   if(!arch&&D(c.date))push({date:D(c.date),type:'session',title:'الجلسة الحالية/القادمة'+(c.action?' · '+short(c.action,60):''),detail:[c.result?'النتيجة: '+short(c.result,120):'',info].filter(Boolean).join(' — ')},mt);
+   if(!arch&&D(c.decisionReceivedAt))push({date:D(c.decisionReceivedAt),type:'case',title:'استلام قرار الجلسة',detail:info},mt);
+   if(arch)push({date:D(c.archiveDate)||D(c.judgmentSessionDate)||D(c.date),type:'case',title:'أرشفة القضية'+(c.result?' · '+short(c.result,60):''),detail:[c.judgmentText?'الحكم: '+short(c.judgmentText,160):'',info].filter(Boolean).join(' — ')},mt);
+  });
+  [].concat((db.announcements||[]).map(a=>[a,false]),(db.announcementArchive||[]).map(a=>[a,true])).forEach(([a,arch])=>{
+   if(!a)return;const mt=m(a.client);if(!mt)return;
+   const t=(a.kind||'إعلان')+(a.number?' رقم '+a.number:''),info=[a.court,a.bailiff?'المحضرون: '+a.bailiff:''].filter(Boolean).join(' · ');
+   const n0=ev.length;
+   if(D(a.deliveryDate))push({date:D(a.deliveryDate),type:'ann',title:'تسليم '+t+' للمحضرين',detail:info},mt);
+   if(D(a.receivedDate))push({date:D(a.receivedDate),type:'ann',title:'استلام '+t,detail:[info,a.receivedBy?'استلمه: '+a.receivedBy:''].filter(Boolean).join(' · ')},mt);
+   if(D(a.session))push({date:D(a.session),type:'session',title:'جلسة مرتبطة بـ '+t,detail:info},mt);
+   if(ev.length===n0)push({date:D(a.archiveDate),type:'ann',title:t+(a.status?' · '+short(a.status,40):''),detail:info},mt);
+  });
+  [].concat(db.tasks||[],db.taskArchive||[]).forEach(t=>{
+   if(!t)return;const mt=m([t.client].concat(Array.isArray(t.clients)?t.clients:[]));if(!mt)return;
+   if(D(t.completionDate))push({date:D(t.completionDate),type:'task',title:'إنجاز مهمة: '+short(t.task,80),detail:t.completionNote?'ما تم: '+short(t.completionNote,140):''},mt);
+   else push({date:D(t.date),type:'task',title:'مهمة: '+short(t.task,80),detail:[t.status,t.assignee?'المسؤول: '+t.assignee:''].filter(Boolean).join(' · ')},mt);
+  });
+  const cl=(db.clients||[]).find(c=>c&&c.name===name),cid=cl&&cl.clientId;
+  (db.powerOfAttorneys||[]).forEach(p=>{if(!p)return;const mt=(cid&&p.clientId===cid)?'exact':m(p.name);if(!mt)return;push({date:p.year?String(p.year)+'-01-01':'',dateLabel:p.year?String(p.year):'',type:'poa',title:'توكيل'+(p.poaNumber?' رقم '+p.poaNumber:'')+(p.year?' لسنة '+p.year:''),detail:[p.office,p.serial?'مسلسل '+p.serial:''].filter(Boolean).join(' · ')},mt)});
+  (db.clientDocuments||[]).forEach(d=>{if(!d)return;const mt=m(d.client_name);if(!mt)return;push({date:D(d.created_at),type:'doc',title:'مستند: '+short(d.file_name,60),detail:d.category||''},mt)});
+  ev.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  return ev;
+ }
+ function dupCount(name){const k=nk(name);return (db.clients||[]).filter(c=>c&&nk(c.name)===k).length}
+ const CSS='#mkTl .tlc{display:inline-block;padding:3px 10px;margin:0 0 6px 6px;border:1px solid #cfd6df;border-radius:14px;font-size:12px;cursor:pointer;background:#fff}#mkTl .tlc.on{background:#14283f;color:#fff;border-color:#14283f}#mkTl .tle{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eef0f3}#mkTl .tld{min-width:92px;font-size:12px;color:#6b7a8c}#mkTl .tli{width:26px;text-align:center}#mkTl .tlt{font-weight:700;font-size:13px}#mkTl .tlx{font-size:12px;color:#556;margin-top:2px}#mkTl .tlw{background:#fff4d6;border-radius:6px;padding:1px 6px;font-size:11px;color:#8a6a1f;margin-right:6px}';
+ function fill(box,name){
+  const ev=build(name),main=ev.filter(e=>e.match!=='review'),rev=ev.filter(e=>e.match==='review');
+  const dup=dupCount(name);let filt='';
+  const row=e=>`<div class="tle"><div class="tli">${TYPES[e.type][1]}</div><div class="tld">${X(e.dateLabel||e.date||'بدون تاريخ')}</div><div style="flex:1"><div class="tlt">${X(e.title)}${e.match==='norm'?'<span class="tlw">اختلاف بسيط في كتابة الاسم</span>':''}${e.match==='review'?'<span class="tlw">اسم مشابه، راجعه</span>':''}</div>${e.detail?`<div class="tlx">${X(e.detail)}</div>`:''}</div></div>`;
+  const draw=()=>{
+   const list=main.filter(e=>!filt||e.type===filt);
+   const counts={};main.forEach(e=>counts[e.type]=(counts[e.type]||0)+1);
+   box.innerHTML=`<style>${CSS}</style>${dup>1?`<div style="background:#ffe9e6;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px">⚠ يوجد ${dup} موكلين بنفس الاسم تقريبا، فالخط الزمني قد يخلط بينهم. راجعه.</div>`:''}<div style="font-size:12px;color:#667;margin-bottom:8px">مبني على بيانات الجلسات والإعلانات والمهام والتوكيلات والمستندات المسجلة باسم الموكل. للعرض الداخلي فقط، ولا يشمل الأتعاب أو الملاحظات الداخلية.</div><div><span class="tlc ${filt?'':'on'}" data-f="">الكل (${main.length})</span>${Object.keys(TYPES).filter(k=>counts[k]).map(k=>`<span class="tlc ${filt===k?'on':''}" data-f="${k}">${TYPES[k][0]} (${counts[k]})</span>`).join('')}</div>${list.length?list.map(row).join(''):'<div style="padding:10px;color:#778">لا توجد أحداث مسجلة لهذا الموكل.</div>'}${rev.length?`<details style="margin-top:10px"><summary style="cursor:pointer;color:#8a6a1f">مطابقات تحتاج مراجعة (${rev.length}): أحداث باسم مشابه وغير مطابق تماما</summary>${rev.map(row).join('')}</details>`:''}`;
+   box.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filt=b.dataset.f;draw()});
+  };
+  draw();
+ }
+ function inject(){
+  if(typeof page==='undefined'||page!=='clientProfile')return;
+  const app=document.getElementById('app');if(!app||document.getElementById('mkTl'))return;
+  const name=typeof selectedClientNameV54==='string'?selectedClientNameV54:'';if(!name)return;
+  const tabs=app.querySelector('.mk2-tabs'),head=app.querySelector('.pagehead');
+  const sec=document.createElement('details');sec.id='mkTl';sec.className='panel';sec.style.margin='10px 0';
+  sec.innerHTML='<summary style="cursor:pointer;font-weight:700;font-size:15px">⏱ الخط الزمني للموكل (كل ما تم في ملفه)</summary><div data-b style="margin-top:8px"></div>';
+  let done=false;sec.addEventListener('toggle',()=>{if(sec.open&&!done){done=true;try{fill(sec.querySelector('[data-b]'),name)}catch(e){sec.querySelector('[data-b]').textContent='تعذر بناء الخط الزمني.';console.warn(e)}}});
+  (tabs||head).after(sec);
+ }
+ const __r=render;render=function(){const r=__r.apply(this,arguments);try{inject()}catch(e){console.warn('mk timeline',e)}return r};
+ try{const ap=document.getElementById('app');if(ap)new MutationObserver(()=>{try{inject()}catch(e){}}).observe(ap,{childList:true})}catch(_){}
+ window.mkClientTimeline=build;
+ try{inject()}catch(_){}
+})();
