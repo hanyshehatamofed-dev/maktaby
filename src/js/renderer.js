@@ -3739,3 +3739,28 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  function start(){startFormWatch();setInterval(()=>{try{buildBar();paintBar();mountSearchBtn();startFormWatch();}catch(e){}},2000);}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+/* Task KPIs fix: count archived tasks in the tasks page numbers (done tasks move to the archive automatically). */
+(function(){
+ if(window.__mkTaskKpiFix)return;window.__mkTaskKpiFix=true;
+ function fix(){
+  try{
+   if(page!=='tasks')return;
+   const done=document.querySelector('.task-kpi-done strong');
+   if(!done||done.dataset.mkFixed)return;
+   const total=document.querySelector('.task-kpi-total strong');
+   const q=String(window.taskSearch||'').trim().toLocaleLowerCase('ar');
+   const arch=(db.taskArchive||[]).filter(x=>!q||[x.task,x.client,x.court,x.assignee,x.status,x.priority,x.source,x.notes].some(v=>String(v||'').toLocaleLowerCase('ar').includes(q))).length;
+   if(!arch)return;
+   const d=(parseInt(done.textContent,10)||0)+arch,t=(parseInt(total.textContent,10)||0)+arch;
+   done.textContent=d;done.dataset.mkFixed='1';total.textContent=t;
+   const em=done.parentElement.querySelector('em');if(em)em.textContent='منها '+arch+' في الأرشيف';
+   const te=total.parentElement.querySelector('em');if(te)te.textContent='تشمل المؤرشفة';
+   const pct=t?Math.round(d/t*100):0;
+   const ps=document.querySelector('.task-progress-heading>strong');if(ps)ps.textContent=pct+'%';
+   const bar=document.querySelector('.task-progress-track i');if(bar)bar.style.width=pct+'%';
+  }catch(e){}
+ }
+ const prev=render;
+ render=function(){const r=prev.apply(this,arguments);fix();return r;};
+})();
