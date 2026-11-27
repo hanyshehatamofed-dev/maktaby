@@ -4017,3 +4017,36 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  try{inject()}catch(_){}
 })();
 
+
+/* ===== Client timeline: print / PDF with office letterhead (added Nov 27) ===== */
+;(function(){
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const ICON={case:'⚖',session:'📅',ann:'📨',task:'✔',poa:'📜',doc:'📎',manual:'✍'};
+ const LBL={case:'قضايا',session:'جلسات',ann:'إعلانات',task:'مهام',poa:'توكيلات',doc:'مستندات',manual:'يدوية'};
+ function printTimeline(name,filt){
+  if(typeof window.mkClientTimeline!=='function')return alert('الخط الزمني غير متاح.');
+  let ev=window.mkClientTimeline(name).filter(e=>e.match!=='review');
+  if(filt)ev=ev.filter(e=>e.type===filt);
+  if(!ev.length)return alert('لا توجد أحداث للطباعة.');
+  const byYear={};ev.forEach(e=>{const y=(e.date||'').slice(0,4)||'بدون تاريخ';(byYear[y]=byYear[y]||[]).push(e)});
+  const years=Object.keys(byYear).sort((a,b)=>b.localeCompare(a));
+  const row=e=>`<div class="ev"><div class="d">${X(e.dateLabel||e.date||'بدون تاريخ')}</div><div class="i">${ICON[e.type]||''}</div><div class="b"><b>${X(e.title)}</b>${e.detail?`<div class="x">${X(e.detail)}</div>`:''}</div></div>`;
+  const body=years.map(y=>`<h3>${X(y)}</h3>${byYear[y].map(row).join('')}`).join('');
+  const logo=document.querySelector('img[src*="logo"]');let logoUrl='';try{if(logo)logoUrl=new URL(logo.getAttribute('src'),location.href).href}catch(_){}
+  const title='الخط الزمني للموكل: '+name;
+  const html=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${X(title)}</title><style>@page{size:A4;margin:12mm}body{font-family:Tahoma,Arial,sans-serif;color:#17283b;margin:0}.top{display:flex;align-items:center;gap:12px;border-bottom:2px solid #c49a45;padding-bottom:8px;margin-bottom:10px}.top img{height:64px}.top .t{flex:1;text-align:center}.top h2{margin:0;font-size:18px;color:#14283f}.top div{font-size:12px;color:#556}h1{font-size:16px;margin:6px 0 4px;color:#14283f;border-right:4px solid #c49a45;padding-right:8px}.meta{font-size:12px;color:#667;margin-bottom:6px}h3{margin:12px 0 4px;font-size:14px;color:#8a6a1f;border-bottom:1px solid #e6dcc3;padding-bottom:2px;page-break-after:avoid}.ev{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #eef0f3;page-break-inside:avoid;font-size:12.5px}.d{min-width:84px;color:#556}.i{width:20px;text-align:center}.b{flex:1}.x{font-size:11.5px;color:#556;margin-top:2px;white-space:pre-wrap}.foot{margin-top:14px;font-size:11px;color:#778;border-top:1px solid #e1e5ea;padding-top:6px}</style></head><body><div class="top">${logoUrl?`<img src="${X(logoUrl)}" alt="">`:''}<div class="t"><h2>مكتب هاني شحاتة للمحاماة والاستشارات القانونية</h2><div>خطاب رسمي · طُبع في ${X(new Date().toLocaleDateString('en-GB'))}</div></div></div><h1>${X(title)}</h1><div class="meta">${ev.length} حدث${filt?' · النوع: '+X(LBL[filt]||filt):''}</div>${body}<div class="foot">مستخرج من بيانات المكتب. لا يشمل الأتعاب أو الملاحظات الداخلية.</div></body></html>`;
+  const fr=document.createElement('iframe');fr.style.cssText='position:fixed;left:-9999px;width:800px;height:600px';document.body.append(fr);
+  const d=fr.contentDocument;d.open();d.write(html);d.close();
+  const go=()=>{try{fr.contentWindow.focus();fr.contentWindow.print()}catch(e){alert('تعذر بدء الطباعة')}setTimeout(()=>fr.remove(),60000)};
+  const im=d.querySelector('img');if(im&&!im.complete){im.onload=im.onerror=()=>setTimeout(go,150);setTimeout(go,2500)}else setTimeout(go,400);
+ }
+ window.mkPrintClientTimeline=printTimeline;
+ function addBtn(){
+  const p=document.getElementById('mkTl');if(!p||p.querySelector('[data-print-tl]'))return;
+  const b=p.querySelector('[data-b]');if(!b||!b.firstChild)return;
+  const btn=document.createElement('button');btn.type='button';btn.className='btn light';btn.setAttribute('data-print-tl','1');btn.style.margin='0 0 8px';btn.textContent='🖨 طباعة / PDF بالورق الرسمي';
+  btn.onclick=()=>{const on=p.querySelector('.tlc.on');const f=on?on.dataset.f:'';const name=typeof selectedClientNameV54==='string'?selectedClientNameV54:'';printTimeline(name,f)};
+  b.insertBefore(btn,b.firstChild);
+ }
+ try{new MutationObserver(()=>{try{addBtn()}catch(e){}}).observe(document.body,{childList:true,subtree:true})}catch(_){}
+})();
