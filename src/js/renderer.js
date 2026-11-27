@@ -3785,7 +3785,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  try{
   const prev=loadCloudState;
   loadCloudState=async function(){
-   const r=await prev.apply(this,arguments);
+   const r=await prev.apply(this,arguments);try{performance.mark('mk-cloud-load-done');}catch(_){}
    try{if(currentUser&&currentUser.id)localStorage.setItem(PK,JSON.stringify({id:currentUser.id,name:currentUser.name,role:currentUser.role}));}catch(_){}
    if(provisional){provisional=false;banner(false);}
    return r;
@@ -3811,7 +3811,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
    if($('#recoveryBackupBtn'))$('#recoveryBackupBtn').style.display=isAdmin()?'inline-block':'none';
    if($('#recoveryHealthBtn'))$('#recoveryHealthBtn').style.display=isAdmin()?'inline-block':'none';
    $('#syncBtn').style.display=canManageOffice()?'inline-block':'none';
-   banner(true);render();
+   banner(true);render();try{performance.mark('mk-instant-render');}catch(_){}
    /* If the live load has not finished in 25s (offline, expired, or account disabled), fall back to the normal screen. */
    setTimeout(()=>{if(provisional){provisional=false;banner(false);}},25000);
   }catch(_){}
