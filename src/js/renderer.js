@@ -328,7 +328,7 @@ async function loadCloudState(){
    if((!Array.isArray(d.taskArchive)&&(db.taskArchive||[]).length)||(!Array.isArray(d.achievements)&&(db.achievements||[]).length))__maktabyTaskArchiveMigrationPending=true;
    db.clients=d.clients||[];db.clients.forEach(c=>{c.fees=c.fees||''});
    db.cases=(d.cases||[]).map((c,i)=>({...c,caseId:c.caseId||c.id||('legacy-case-'+encodeURIComponent([c.client||'',c.number||'',c.court||'',c.date||''].join('|')).slice(0,140)),result:c.result||c.decision||'',history:Array.isArray(c.history)?c.history:[]}));db.announcements=d.announcements||[];db.tasks=Array.isArray(d.tasks)?d.tasks:[];db.tasks.forEach(ensureTaskIdentityV10);
-   db.taskArchive=Array.isArray(d.taskArchive)?d.taskArchive:(db.taskArchive||[]);db.achievements=Array.isArray(d.achievements)?d.achievements:(db.achievements||[]);db.announcementArchive=d.announcementArchive||[];db.caseArchive=d.caseArchive||[];db.clientArchive=d.clientArchive||[];db.poaArchive=d.poaArchive||[];
+   db.taskArchive=Array.isArray(d.taskArchive)?d.taskArchive:(db.taskArchive||[]);db.achievements=Array.isArray(d.achievements)?d.achievements:(db.achievements||[]);db.announcementArchive=d.announcementArchive||[];db.caseArchive=d.caseArchive||[];db.clientArchive=d.clientArchive||[];db.poaArchive=d.poaArchive||[];db.clientTimeline=Array.isArray(d.clientTimeline)?d.clientTimeline:(db.clientTimeline||[]);
    const cloudEnumerationCount=Array.isArray(d.enumerations)?d.enumerations.length:0;
    db.appealRules=Array.isArray(d.appealRules)?d.appealRules:(db.appealRules||[]);db.appealCalculations=Array.isArray(d.appealCalculations)?d.appealCalculations:(db.appealCalculations||[]);db.legalHolidays=Array.isArray(d.legalHolidays)?d.legalHolidays:(db.legalHolidays||[]);db.enumerations=mergeEnumerationRows(d.enumerations,db.enumerations);db.powerOfAttorneys=d.powerOfAttorneys||db.powerOfAttorneys||[];
    // Publish recovered local rows without replacing other shared office data.
@@ -3915,13 +3915,13 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  };
 })();
 
-/* ===== Client timeline (internal, read-only, added Nov 27) ===== */
+/* ===== Client timeline (internal, added Nov 27) ===== */
 ;(function(){
  const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const nk=s=>String(s==null?'':s).replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
  const D=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?m[0]:''};
  const short=(s,n)=>{s=String(s==null?'':s).replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n)+'…':s};
- const TYPES={case:['قضايا','⚖'],session:['جلسات','📅'],ann:['إعلانات','📨'],task:['مهام','✔'],poa:['توكيلات','📜'],doc:['مستندات','📎']};
+ const TYPES={manual:['يدوية','✍'],case:['قضايا','⚖'],session:['جلسات','📅'],ann:['إعلانات','📨'],task:['مهام','✔'],poa:['توكيلات','📜'],doc:['مستندات','📎']};
  function matcher(name){
   const raw=String(name||'').trim(),key=nk(raw),multi=key.split(' ').length>=2;
   return function(v){
@@ -3966,20 +3966,37 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
   const cl=(db.clients||[]).find(c=>c&&c.name===name),cid=cl&&cl.clientId;
   (db.powerOfAttorneys||[]).forEach(p=>{if(!p)return;const mt=(cid&&p.clientId===cid)?'exact':m(p.name);if(!mt)return;push({date:p.year?String(p.year)+'-01-01':'',dateLabel:p.year?String(p.year):'',type:'poa',title:'توكيل'+(p.poaNumber?' رقم '+p.poaNumber:'')+(p.year?' لسنة '+p.year:''),detail:[p.office,p.serial?'مسلسل '+p.serial:''].filter(Boolean).join(' · ')},mt)});
   (db.clientDocuments||[]).forEach(d=>{if(!d)return;const mt=m(d.client_name);if(!mt)return;push({date:D(d.created_at),type:'doc',title:'مستند: '+short(d.file_name,60),detail:d.category||''},mt)});
+  const ck=cid||('name:'+nk(name));
+  (db.clientTimeline||[]).forEach(x=>{if(!x||x.clientKey!==ck)return;ev.push({date:D(x.date),type:'manual',title:x.title||'',detail:x.details||'',match:'exact',manualId:x.id,clientVisible:!!x.clientVisible})});
   ev.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   return ev;
  }
+ function keyOf(name){const cl=(db.clients||[]).find(c=>c&&c.name===name);return (cl&&cl.clientId)||('name:'+nk(name))}
+ const canEdit=()=>typeof canManageOffice==='function'&&canManageOffice();
+ async function persist(mutate){const before=JSON.stringify(db.clientTimeline||[]);try{db.clientTimeline=db.clientTimeline||[];mutate(db.clientTimeline);await saveCloudState();await loadCloudState()}catch(e){db.clientTimeline=JSON.parse(before);try{localStorage.setItem(STORAGE_KEY,JSON.stringify(db))}catch(_){}throw e}return true}
  function dupCount(name){const k=nk(name);return (db.clients||[]).filter(c=>c&&nk(c.name)===k).length}
  const CSS='#mkTl .tlc{display:inline-block;padding:3px 10px;margin:0 0 6px 6px;border:1px solid #cfd6df;border-radius:14px;font-size:12px;cursor:pointer;background:#fff}#mkTl .tlc.on{background:#14283f;color:#fff;border-color:#14283f}#mkTl .tle{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eef0f3}#mkTl .tld{min-width:92px;font-size:12px;color:#6b7a8c}#mkTl .tli{width:26px;text-align:center}#mkTl .tlt{font-weight:700;font-size:13px}#mkTl .tlx{font-size:12px;color:#556;margin-top:2px}#mkTl .tlw{background:#fff4d6;border-radius:6px;padding:1px 6px;font-size:11px;color:#8a6a1f;margin-right:6px}';
  function fill(box,name){
   const ev=build(name),main=ev.filter(e=>e.match!=='review'),rev=ev.filter(e=>e.match==='review');
   const dup=dupCount(name);let filt='';
-  const row=e=>`<div class="tle"><div class="tli">${TYPES[e.type][1]}</div><div class="tld">${X(e.dateLabel||e.date||'بدون تاريخ')}</div><div style="flex:1"><div class="tlt">${X(e.title)}${e.match==='norm'?'<span class="tlw">اختلاف بسيط في كتابة الاسم</span>':''}${e.match==='review'?'<span class="tlw">اسم مشابه، راجعه</span>':''}</div>${e.detail?`<div class="tlx">${X(e.detail)}</div>`:''}</div></div>`;
+  const row=e=>`<div class="tle" ${e.manualId?'data-mid="'+X(e.manualId)+'"':''}><div class="tli">${TYPES[e.type][1]}</div><div class="tld">${X(e.dateLabel||e.date||'بدون تاريخ')}</div><div style="flex:1"><div class="tlt">${X(e.title)}${e.type==='manual'?'<span class="tlw" style="background:#e3f1e6;color:#25693a">يدوي</span>':''}${e.type==='manual'&&e.clientVisible?'<span class="tlw">ظاهر للعميل</span>':''}${e.match==='norm'?'<span class="tlw">اختلاف بسيط في كتابة الاسم</span>':''}${e.match==='review'?'<span class="tlw">اسم مشابه، راجعه</span>':''}</div>${e.detail?`<div class="tlx" style="white-space:pre-wrap">${X(e.detail)}</div>`:''}</div>${e.manualId&&canEdit()?'<div style="display:flex;gap:4px;align-items:flex-start"><button type="button" class="btn light" data-edit="'+X(e.manualId)+'">تعديل</button><button type="button" class="btn light" data-del="'+X(e.manualId)+'">حذف</button></div>':''}</div>`;
+  const refreshAll=()=>{const o=document.getElementById('mkTl');if(typeof render==='function'&&typeof page!=='undefined'&&page==='clientProfile'){render();setTimeout(()=>{const n=document.getElementById('mkTl');if(n){n.open=true}},50)}else fill(box,name)};
+  const openForm=x=>{const f=box.querySelector('[data-form]');if(!f)return;const t0=new Date(),td=t0.getFullYear()+'-'+String(t0.getMonth()+1).padStart(2,'0')+'-'+String(t0.getDate()).padStart(2,'0');
+   f.innerHTML=`<div style="border:1px solid #cfd6df;border-radius:10px;padding:10px;margin-bottom:10px;background:#fafbfc"><div style="display:grid;grid-template-columns:150px 1fr;gap:8px"><div><label style="font-size:12px;color:#556">التاريخ</label><input type="date" data-d style="width:100%;padding:7px;border:1px solid #cfd6df;border-radius:8px"></div><div><label style="font-size:12px;color:#556">عنوان قصير</label><input data-t maxlength="120" placeholder="مثال: تم تقديم مذكرة" style="width:100%;padding:7px;border:1px solid #cfd6df;border-radius:8px"></div></div><label style="font-size:12px;color:#556;display:block;margin-top:6px">التفاصيل (اختياري)</label><textarea data-x rows="3" maxlength="2000" style="width:100%;padding:7px;border:1px solid #cfd6df;border-radius:8px;font:inherit"></textarea><label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-size:12px"><input type="checkbox" data-v style="width:auto"> ظاهر للعميل (للمرحلة القادمة، لا يظهر للعميل حاليا)</label><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="btn goldbtn" data-s>حفظ</button><button type="button" class="btn light" data-c>إلغاء</button></div></div>`;
+   f.querySelector('[data-d]').value=(x&&x.date)||td;f.querySelector('[data-t]').value=(x&&x.title)||'';f.querySelector('[data-x]').value=(x&&x.details)||'';f.querySelector('[data-v]').checked=!!(x&&x.clientVisible);
+   f.querySelector('[data-c]').onclick=()=>{f.innerHTML=''};
+   f.querySelector('[data-s]').onclick=async()=>{const date=f.querySelector('[data-d]').value,title=f.querySelector('[data-t]').value.trim(),details=f.querySelector('[data-x]').value.trim(),vis=f.querySelector('[data-v]').checked;if(!title)return alert('اكتب عنوانا قصيرا للبند.');if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return alert('اختر التاريخ.');
+    const btn=f.querySelector('[data-s]');btn.disabled=true;const id=x?x.id:('tl-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8));const who=(typeof currentUser!=='undefined'&&currentUser&&(currentUser.full_name||currentUser.name||currentUser.email))||'';
+    try{await persist(a=>{const i=a.findIndex(z=>z.id===id);const rec={id,clientKey:keyOf(name),clientName:name,date,title,details,clientVisible:vis,updatedAt:new Date().toISOString(),updatedBy:who};if(i>=0)a[i]={...a[i],...rec};else a.unshift({...rec,createdAt:rec.updatedAt,createdBy:who})});if(!(db.clientTimeline||[]).some(z=>z.id===id))throw new Error('لم يتم حفظ البند في السحابة. لم يُعتمد.');refreshAll()}catch(e){alert('تعذر الحفظ: '+e.message);btn.disabled=false}};
+  };
   const draw=()=>{
    const list=main.filter(e=>!filt||e.type===filt);
    const counts={};main.forEach(e=>counts[e.type]=(counts[e.type]||0)+1);
-   box.innerHTML=`<style>${CSS}</style>${dup>1?`<div style="background:#ffe9e6;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px">⚠ يوجد ${dup} موكلين بنفس الاسم تقريبا، فالخط الزمني قد يخلط بينهم. راجعه.</div>`:''}<div style="font-size:12px;color:#667;margin-bottom:8px">مبني على بيانات الجلسات والإعلانات والمهام والتوكيلات والمستندات المسجلة باسم الموكل. للعرض الداخلي فقط، ولا يشمل الأتعاب أو الملاحظات الداخلية.</div><div><span class="tlc ${filt?'':'on'}" data-f="">الكل (${main.length})</span>${Object.keys(TYPES).filter(k=>counts[k]).map(k=>`<span class="tlc ${filt===k?'on':''}" data-f="${k}">${TYPES[k][0]} (${counts[k]})</span>`).join('')}</div>${list.length?list.map(row).join(''):'<div style="padding:10px;color:#778">لا توجد أحداث مسجلة لهذا الموكل.</div>'}${rev.length?`<details style="margin-top:10px"><summary style="cursor:pointer;color:#8a6a1f">مطابقات تحتاج مراجعة (${rev.length}): أحداث باسم مشابه وغير مطابق تماما</summary>${rev.map(row).join('')}</details>`:''}`;
+   box.innerHTML=`<style>${CSS}</style>${dup>1?`<div style="background:#ffe9e6;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px">⚠ يوجد ${dup} موكلين بنفس الاسم تقريبا، فالخط الزمني قد يخلط بينهم. راجعه.</div>`:''}<div style="font-size:12px;color:#667;margin-bottom:8px">مبني على بيانات الجلسات والإعلانات والمهام والتوكيلات والمستندات المسجلة باسم الموكل. للعرض الداخلي فقط، ولا يشمل الأتعاب أو الملاحظات الداخلية.</div>${canEdit()?'<div style="margin-bottom:8px"><button type="button" class="btn goldbtn" data-add>＋ إضافة بند يدوي</button></div><div data-form></div>':''}<div><span class="tlc ${filt?'':'on'}" data-f="">الكل (${main.length})</span>${Object.keys(TYPES).filter(k=>counts[k]).map(k=>`<span class="tlc ${filt===k?'on':''}" data-f="${k}">${TYPES[k][0]} (${counts[k]})</span>`).join('')}</div>${list.length?list.map(row).join(''):'<div style="padding:10px;color:#778">لا توجد أحداث مسجلة لهذا الموكل.</div>'}${rev.length?`<details style="margin-top:10px"><summary style="cursor:pointer;color:#8a6a1f">مطابقات تحتاج مراجعة (${rev.length}): أحداث باسم مشابه وغير مطابق تماما</summary>${rev.map(row).join('')}</details>`:''}`;
    box.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{filt=b.dataset.f;draw()});
+   const ab=box.querySelector('[data-add]');if(ab)ab.onclick=()=>openForm(null);
+   box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openForm((db.clientTimeline||[]).find(x=>x.id===b.dataset.edit)));
+   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{const id=b.dataset.del;if(!confirm('حذف هذا البند اليدوي؟'))return;b.disabled=true;try{await persist(a=>{const i=a.findIndex(x=>x.id===id);if(i>=0)a.splice(i,1)});refreshAll()}catch(e){alert('تعذر الحذف: '+e.message);b.disabled=false}});
   };
   draw();
  }
@@ -3994,7 +4011,8 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
   (tabs||head).after(sec);
  }
  const __r=render;render=function(){const r=__r.apply(this,arguments);try{inject()}catch(e){console.warn('mk timeline',e)}return r};
- try{const ap=document.getElementById('app');if(ap)new MutationObserver(()=>{try{inject()}catch(e){}}).observe(ap,{childList:true})}catch(_){}
+ try{const sp=sharedPayload;sharedPayload=function(){const p=sp.apply(this,arguments);p.clientTimeline=Array.isArray(db.clientTimeline)?db.clientTimeline:[];return p}}catch(e){console.warn('mk timeline payload',e)}
  window.mkClientTimeline=build;
  try{inject()}catch(_){}
 })();
+
