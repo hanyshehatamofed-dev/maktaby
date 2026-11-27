@@ -3883,3 +3883,34 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  const __r=render;render=function(){const r=__r.apply(this,arguments);try{decorate()}catch(e){console.warn('mk task decorate',e)}return r};
  try{decorate()}catch(_){}
 })();
+
+/* ===== Task print: choose which tasks to print (added Nov 27) ===== */
+;(function(){
+ const prevPrint=window.mkPrintTasks;if(typeof prevPrint!=='function')return;
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ window.mkPrintTasks=function(folder){
+  if(!folder||!folder.querySelectorAll)return prevPrint.apply(this,arguments);
+  const rows=[...folder.querySelectorAll('tr[data-mk-task]')];
+  if(!rows.length)return prevPrint.apply(this,arguments);
+  const name=folder.querySelector('summary b')?.textContent||'';
+  const items=rows.map(tr=>({id:tr.dataset.mkTask,date:(tr.children[0]?.textContent||'').trim(),task:(tr.querySelector('.tasks-task-cell b')?.textContent||'').trim(),client:(tr.children[2]?.textContent||'').trim()}));
+  document.getElementById('mkPrintSelModal')?.remove();
+  const o=document.createElement('div');o.id='mkPrintSelModal';o.style.cssText='position:fixed;inset:0;z-index:10060;background:rgba(10,20,35,.6);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto';
+  o.innerHTML=`<div dir="rtl" style="width:min(720px,100%);background:var(--bg,#fff);border-radius:14px;padding:16px;box-shadow:0 20px 60px #0005"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px"><h2 style="margin:0;font-size:18px">اختيار المهام للطباعة${name?' · '+X(name):''}</h2><button class="btn danger" type="button" data-c>إغلاق ×</button></div><div style="font-size:12px;color:#667;margin-bottom:8px">كل المهام مختارة. شيل العلامة عن المهمة اللي مش عايز تتطبع.</div><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><button class="btn light" type="button" data-all>تحديد الكل</button><button class="btn light" type="button" data-none>إلغاء تحديد الكل</button><span data-n style="font-size:13px;color:#445"></span></div><div data-list style="max-height:58vh;overflow:auto;border:1px solid #e1e5ea;border-radius:10px"></div><div style="display:flex;gap:8px;justify-content:flex-start;margin-top:10px"><button class="btn goldbtn" type="button" data-go>🖨 طباعة المختار بكل التفاصيل</button></div></div>`;
+  document.body.append(o);
+  const list=o.querySelector('[data-list]');
+  items.forEach(it=>{const l=document.createElement('label');l.style.cssText='display:flex;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid #eef0f3;cursor:pointer;font-size:13px';l.innerHTML=`<input type="checkbox" checked data-id="${X(it.id)}" style="width:auto"><span style="min-width:84px;color:#556">${X(it.date)}</span><b style="flex:1">${X(it.task)}</b><span style="color:#667">${X(it.client)}</span>`;list.append(l)});
+  const boxes=()=>[...list.querySelectorAll('input[type=checkbox]')];
+  const upd=()=>{const n=boxes().filter(b=>b.checked).length;o.querySelector('[data-n]').textContent=n+' من '+items.length+' مهمة مختارة';o.querySelector('[data-go]').disabled=!n};
+  list.addEventListener('change',upd);upd();
+  o.querySelector('[data-all]').onclick=()=>{boxes().forEach(b=>b.checked=true);upd()};
+  o.querySelector('[data-none]').onclick=()=>{boxes().forEach(b=>b.checked=false);upd()};
+  o.querySelector('[data-c]').onclick=()=>o.remove();
+  o.addEventListener('click',e=>{if(e.target===o)o.remove()});
+  o.querySelector('[data-go]').onclick=()=>{
+   const chosen=new Set(boxes().filter(b=>b.checked).map(b=>b.dataset.id));if(!chosen.size)return;
+   const fake={querySelector:s=>folder.querySelector(s),querySelectorAll:s=>[...folder.querySelectorAll(s)].filter(tr=>!tr.dataset||tr.dataset.mkTask===undefined||chosen.has(tr.dataset.mkTask))};
+   o.remove();prevPrint.call(window,fake);
+  };
+ };
+})();
