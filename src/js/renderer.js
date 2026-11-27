@@ -3817,3 +3817,70 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
   }catch(_){}
  })();
 })();
+
+/* ===== Task details + print (added Nov 27) ===== */
+;(function(){
+ const WITH_DETAILS=true,WITH_PRINT=false;
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const norm=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+ const lst=v=>(Array.isArray(v)?v:[v]).filter(Boolean).join('، ');
+ const clientsOf=x=>lst(Array.isArray(x.clients)&&x.clients.length?x.clients:[x.client]);
+ function annFor(x){if(x.source!=='الإعلانات')return null;const m=/رقم\s+(.+)$/.exec(String(x.task||''));const n=m?m[1].trim():'';return (db.announcements||[]).find(a=>a&&String(a.number||'—')===n&&(a.court||'')===(x.court||'')&&(a.client||'')===(x.client||''))||null}
+ function caseFor(x){const id=x.sourceCaseId;const all=[...(db.cases||[]),...(db.caseArchive||[])];if(id)return all.find(c=>c&&String(c.caseId||c.id||'')===String(id))||null;if(x.source==='جلسة الغد')return (db.cases||[]).find(c=>c&&c.court===x.court&&c.client===x.client&&c.date===x.date)||null;return null}
+ function sections(x){
+  const a=annFor(x),c=caseFor(x),S=[];
+  const add=(arr,l,v)=>{v=norm(Array.isArray(v)?lst(v):v);if(v)arr.push([l,v])};
+  const t=[];add(t,'المهمة',x.task);add(t,'التصنيف',x.kind);add(t,'تاريخ الاستحقاق',x.date);add(t,'الأولوية',x.priority);add(t,'الحالة',x.status);add(t,'المسؤول',x.assignee);add(t,'المصدر',x.source||'يدوي');
+  if(!a&&!c){add(t,'الموكل',clientsOf(x));add(t,'الفرع',x.branch);add(t,'المحكمة',x.court);add(t,'رقم القضية',x.caseNumber);add(t,'نوع القضية',x.caseType);add(t,'الموضوع',x.subject);add(t,'الدائرة',x.circuit);add(t,'المقر',x.venue);add(t,'الرول',x.roll);add(t,'تاريخ الجلسة',x.sessionDate)}
+  add(t,'ملاحظات',x.notes||x.note);add(t,'تاريخ الإنجاز',x.completionDate);add(t,'ما تم',x.completionNote);
+  S.push(['بيانات المهمة',t]);
+  if(a){const s=[];add(s,'رقم الإعلان',a.number);add(s,'نوع الإعلان',a.kind);add(s,'الموكل',a.client);add(s,'الفرع',a.branch);add(s,'المحكمة',a.court);add(s,'المحضرون',a.bailiff);add(s,'تاريخ التسليم للمحضرين',a.deliveryDate);add(s,'تاريخ الجلسة',a.session);add(s,'تاريخ الاستلام الفعلي',a.receivedDate);add(s,'من استلم الإعلان',a.receivedBy);add(s,'ملاحظات',a.notes);S.push(['بيانات الإعلان',s])}
+  if(c){const s=[];add(s,'الموكلون',Array.isArray(c.clients)&&c.clients.length?c.clients:c.client);add(s,'صفة الموكل',c.clientRole);add(s,'الخصوم',Array.isArray(c.opponents)&&c.opponents.length?c.opponents:c.opponent);add(s,'المحكمة',c.court);add(s,'رقم القضية',c.number);add(s,'نوع القضية',c.caseType);add(s,'الموضوع',c.subject);add(s,'الدائرة',c.circuit);add(s,'المقر',c.venue);add(s,'الرول',c.roll);add(s,'تاريخ الجلسة',c.date);add(s,'الإجراء المطلوب',c.action);add(s,'نتيجة / قرار الجلسة',c.result);add(s,'المسؤول',c.assignee);add(s,'الفرع',c.branch);add(s,'ملاحظات',c.notes);S.push(['بيانات القضية / الجلسة',s])}
+  return S;
+ }
+ const gridHtml=S=>S.map(([h,r])=>`<div class="mkd-sec"><h3>${X(h)}</h3><div class="mkd-grid">${r.map(([l,v])=>`<div class="mkd-f"><span>${X(l)}</span><b>${X(v)}</b></div>`).join('')}</div></div>`).join('');
+ const CSS=`.mkd-sec{margin:0 0 12px}.mkd-sec h3{margin:0 0 6px;font-size:14px;color:#8a6a1f;border-bottom:1px solid #e3d3a8;padding-bottom:3px}.mkd-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px}.mkd-f{display:flex;gap:6px;font-size:13px;line-height:1.7}.mkd-f span{color:#6b7a8c;min-width:105px}.mkd-f b{font-weight:600;color:#17283b;word-break:break-word}`;
+ let LIST=[];
+ function key(date,task,client){return [date,task,client].map(norm).join('|')}
+ function decorate(){
+  const folders=document.querySelectorAll('.task-folder');if(!folders.length)return;
+  let list=[];try{list=tasks()||[]}catch(_){return}
+  LIST=list;const used=new Set();
+  folders.forEach(f=>{
+   f.querySelectorAll('tbody tr').forEach(tr=>{
+    const act=tr.querySelector('td.task-row-actions');if(!act)return;
+    const date=tr.children[0]?.textContent,task=tr.querySelector('.tasks-task-cell b')?.textContent,client=tr.children[2]?.textContent;
+    const k=key(date,task,client);let idx=-1;
+    for(let i=0;i<list.length;i++){if(used.has(i))continue;const x=list[i];if(key(x.date||'—',x.task||'—',clientsOf(x)||'—')===k){idx=i;break}}
+    if(idx<0)return;used.add(idx);tr.dataset.mkTask=idx;
+    if(WITH_DETAILS&&!act.querySelector('.mk-det-btn')){const b=document.createElement('button');b.type='button';b.className='btn light mk-det-btn';b.textContent='تفاصيل';b.onclick=()=>window.mkTaskDetails(idx);act.prepend(b)}
+   });
+   if(WITH_PRINT){const box=f.querySelector('.task-folder-content');if(box&&!box.querySelector('.mk-print-bar')){const d=document.createElement('div');d.className='mk-print-bar';d.style.cssText='display:flex;justify-content:flex-start;padding:6px 0';const b=document.createElement('button');b.type='button';b.className='btn light';b.textContent='🖨 طباعة مهام هذا المكان بكل التفاصيل';b.onclick=()=>window.mkPrintTasks(f);d.append(b);box.prepend(d)}}
+  });
+  if(WITH_PRINT){const h=document.querySelector('.task-list-heading');if(h&&!h.querySelector('.mk-print-all')){const b=document.createElement('button');b.type='button';b.className='btn goldbtn mk-print-all';b.textContent='🖨 طباعة كل المعروض';b.onclick=()=>window.mkPrintTasks(null);h.append(b)}}
+ }
+ window.mkTaskDetails=function(idx){
+  const x=LIST[idx];if(!x)return;document.getElementById('mkTaskDetailsModal')?.remove();
+  const o=document.createElement('div');o.id='mkTaskDetailsModal';o.style.cssText='position:fixed;inset:0;z-index:10050;background:rgba(10,20,35,.6);display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto';
+  o.innerHTML=`<style>${CSS}@media(max-width:640px){.mkd-grid{grid-template-columns:1fr}}</style><div dir="rtl" style="width:min(820px,100%);background:var(--bg,#fff);border-radius:14px;padding:18px;box-shadow:0 20px 60px #0005"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px"><h2 style="margin:0;font-size:18px">تفاصيل المهمة</h2><span><button class="btn light" type="button" data-p>🖨 طباعة</button> <button class="btn danger" type="button" data-c>إغلاق ×</button></span></div>${gridHtml(sections(x))}</div>`;
+  document.body.append(o);o.querySelector('[data-c]').onclick=()=>o.remove();o.addEventListener('click',e=>{if(e.target===o)o.remove()});
+  o.querySelector('[data-p]').onclick=()=>printDoc('تفاصيل مهمة',[{name:'',rows:[x]}],null);
+ };
+ function printDoc(title,groups,sub){
+  const blocks=groups.map(g=>{const name=g.name,rows=g.rows;return `<section class="grp">${name?`<h1>${X(name)} <small>(${rows.length} مهمة)</small></h1>`:''}${rows.map((x,i)=>`<article class="tk"><div class="tkh"><b>${i+1}. ${X(x.task||'—')}</b><span>${X(x.date||'')} · ${X(x.status||'')}</span></div>${gridHtml(sections(x))}</article>`).join('')}</section>`}).join('');
+  const html=`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${X(title)}</title><style>@page{size:A4;margin:12mm}body{font-family:Tahoma,Arial,sans-serif;color:#17283b;margin:0}.top{text-align:center;border-bottom:2px solid #c49a45;padding-bottom:6px;margin-bottom:10px}.top h2{margin:0;font-size:17px}.top div{font-size:12px;color:#556}.grp{page-break-after:always}.grp:last-child{page-break-after:auto}h1{font-size:16px;margin:6px 0 8px;color:#14283f;border-right:4px solid #c49a45;padding-right:8px}h1 small{color:#778;font-size:12px}.tk{border:1px solid #d8dde4;border-radius:8px;padding:8px 10px;margin:0 0 10px;page-break-inside:avoid}.tkh{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin-bottom:6px;background:#f6f2e6;padding:4px 8px;border-radius:6px}${CSS}</style></head><body><div class="top"><h2>مكتب هاني شحاتة للمحاماة والاستشارات القانونية</h2><div>${X(title)} · طُبع في ${X(new Date().toLocaleDateString('en-GB'))}${sub?' · '+X(sub):''}</div></div>${blocks}</body></html>`;
+  const fr=document.createElement('iframe');fr.style.cssText='position:fixed;left:-9999px;width:800px;height:600px';document.body.append(fr);
+  const d=fr.contentDocument;d.open();d.write(html);d.close();
+  setTimeout(()=>{try{fr.contentWindow.focus();fr.contentWindow.print()}catch(e){alert('تعذر بدء الطباعة')}setTimeout(()=>fr.remove(),60000)},400);
+ }
+ window.mkPrintTasks=function(folder){
+  decorate();
+  const folders=folder?[folder]:[...document.querySelectorAll('.task-folder')];
+  const groups=folders.map(f=>({name:f.querySelector('summary b')?.textContent||'',rows:[...f.querySelectorAll('tr[data-mk-task]')].map(tr=>LIST[Number(tr.dataset.mkTask)]).filter(Boolean)})).filter(g=>g.rows.length);
+  if(!groups.length)return alert('لا توجد مهام معروضة للطباعة.');
+  const q=window.taskSearch?('البحث: '+window.taskSearch):'';
+  printDoc(folder?'مهام '+groups[0].name:'قائمة المهام',groups,q);
+ };
+ const __r=render;render=function(){const r=__r.apply(this,arguments);try{decorate()}catch(e){console.warn('mk task decorate',e)}return r};
+ try{decorate()}catch(_){}
+})();
