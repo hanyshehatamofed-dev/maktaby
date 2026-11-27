@@ -3998,3 +3998,41 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  window.mkClientTimeline=build;
  try{inject()}catch(_){}
 })();
+
+/* ===== In-app reminder: sessions tomorrow (added Nov 27) ===== */
+;(function(){
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const pad=n=>String(n).padStart(2,'0');
+ const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+ const tomorrow=()=>{if(window.__mkTmrDay)return window.__mkTmrDay;const d=new Date();d.setDate(d.getDate()+1);return ymd(d)};
+ const user=()=>{try{return currentUser}catch(e){return null}};
+ const key=()=>{const u=user();return 'mk_tmr_dismiss_'+tomorrow()+'_'+((u&&(u.id||u.email))||'')};
+ function sessions(){
+  const day=tomorrow();let list=[];try{list=(db.cases||[]).filter(c=>c&&!c.archived&&String(c.date||'').slice(0,10)===day)}catch(e){}
+  return list;
+ }
+ function render(){
+  let b=document.getElementById('mkTmr');
+  const u=user();
+  if(!u){if(b)b.remove();return}
+  let dismissed=false;try{dismissed=!!localStorage.getItem(key())}catch(_){}
+  const list=dismissed?[]:sessions();
+  if(!list.length){if(b)b.remove();return}
+  const sig=tomorrow()+'|'+list.length+'|'+list.map(c=>c.number).join(',');
+  if(b&&b.dataset.sig===sig)return;
+  if(!b){b=document.createElement('div');b.id='mkTmr';}
+  b.dataset.sig=sig;
+  b.setAttribute('dir','rtl');
+  b.style.cssText='margin:8px 12px;padding:10px 14px;border:1px solid #e3c878;background:#fff8e1;border-radius:12px;font-size:13px;color:#4a3a10';
+  const rows=list.slice(0,30).map(c=>`<div style="padding:5px 0;border-top:1px solid #f0e2b4"><b>${X(c.client||'—')}</b> · دعوى ${X(c.number||'—')} · ${X(c.court||'—')}${c.circuit?' · '+X(c.circuit):''}${c.action?'<div style="font-size:12px;color:#6b5a2a">المطلوب: '+X(String(c.action).slice(0,120))+'</div>':''}</div>`).join('');
+  b.innerHTML=`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><b style="flex:1">⏰ تذكير: ${list.length} جلسة غدا (${X(tomorrow())})</b><button type="button" class="btn light" data-open>عرض الجلسات</button><button type="button" class="btn light" data-hide>تم، إخفاء اليوم</button></div><details style="margin-top:4px"><summary style="cursor:pointer;font-size:12px">التفاصيل</summary>${rows}${list.length>30?'<div style="font-size:12px">و'+(list.length-30)+' أخرى في صفحة الجلسات</div>':''}</details>`;
+  b.querySelector('[data-hide]').onclick=()=>{try{localStorage.setItem(key(),'1')}catch(_){}b.remove()};
+  b.querySelector('[data-open]').onclick=()=>{const nav=document.querySelector('#nav [data-page="cases"]');if(nav)nav.click();setTimeout(()=>{const f=document.querySelector('#v91CaseFilters [data-filter="tomorrow"]');if(f)f.click()},500)};
+  if(!b.isConnected){const anchor=document.getElementById('v91SmartBar')||document.querySelector('.top');if(anchor)anchor.insertAdjacentElement('afterend',b);else return}
+ }
+ let t=null;const q=()=>{if(t)clearTimeout(t);t=setTimeout(()=>{t=null;try{render()}catch(e){console.warn('mk reminder',e)}},400)};
+ try{new MutationObserver(q).observe(document.body,{childList:true,subtree:true})}catch(_){}
+ setInterval(q,10*60*1000);
+ window.mkTomorrowSessions=sessions;
+ q();
+})();
