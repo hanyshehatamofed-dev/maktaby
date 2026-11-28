@@ -419,3 +419,38 @@
  try{let q=null;new MutationObserver(()=>{if(q)return;q=setTimeout(()=>{q=null;try{inject()}catch(e){}},150)}).observe(document.body,{childList:true,subtree:true})}catch(_){}
  window.mkWaMessage=message;window.mkWaNormPhone=normPhone;
 })();
+
+/* ===== Appeal deadlines: suggested rules + weekend warning (added Nov 28) ===== */
+;(function(){
+ const PRE=[
+  {id:'ar-preset-appeal-40',type:'استئناف',title:'استئناف حكم مدني/تجاري (مقترحة — تحتاج مراجعة المحامي)',days:40,startEvent:'عادةً من صدور الحكم، ومن الإعلان في الأحوال التي يحددها القانون — يحددها المحامي',source:'م227 فقرة 1 قانون المرافعات 13 لسنة 1968',note:'مقترحة من النظام. راجع بدء الميعاد وأي استثناءات (أحكام غيابية، وقف، انقطاع).'},
+  {id:'ar-preset-appeal-15',type:'استئناف',title:'استئناف في المواد المستعجلة (مقترحة — تحتاج مراجعة المحامي)',days:15,startEvent:'عادةً من صدور الحكم — يحددها المحامي',source:'م227 فقرة 2 قانون المرافعات 13 لسنة 1968',note:'مقترحة من النظام. تأكد أن المادة مستعجلة فعلًا.'},
+  {id:'ar-preset-cassation-60',type:'نقض',title:'طعن بالنقض (مقترحة — تحتاج مراجعة المحامي)',days:60,startEvent:'من تاريخ الحكم أو انقضاء ميعاد المعارضة/الحكم في المعارضة بحسب الحالة — يحددها المحامي',source:'م34 قانون 57 لسنة 1959 (راجع النص الحاكم للنقض المدني)',note:'مقترحة من النظام. يلزم إيداع الأسباب في نفس الميعاد.'},
+  {id:'ar-preset-admin-60',type:'طعن إداري',title:'طعن أمام الإدارية العليا (مقترحة — تحتاج مراجعة المحامي)',days:60,startEvent:'من تاريخ صدور الحكم المطعون فيه',source:'م44 قانون مجلس الدولة 47 لسنة 1972',note:'مقترحة من النظام.'}
+ ];
+ const RM='mk_appeal_preset_removed';
+ const removed=()=>{try{return JSON.parse(localStorage.getItem(RM)||'[]')}catch(e){return []}};
+ function ensure(){try{
+  if(typeof db==='undefined'||!db)return;
+  if(!Array.isArray(db.appealRules))db.appealRules=[];
+  const rm=removed();
+  PRE.forEach(p=>{if(rm.includes(p.id)||db.appealRules.some(r=>r.id===p.id))return;db.appealRules.push({...p,distanceDays:0,extendHoliday:true,active:true,preset:true,createdAt:'',createdBy:'اقتراح النظام'})});
+ }catch(e){}}
+ try{const prior=render;render=function(){if(page==='cases')ensure();return prior.apply(this,arguments)}}catch(e){}
+ try{const orm=window.removeAppealRuleV10;if(typeof orm==='function')window.removeAppealRuleV10=async function(id){
+  const had=(db.appealRules||[]).some(r=>r.id===id);const r=await orm.apply(this,arguments);
+  try{if(had&&String(id).indexOf('ar-preset-')===0&&!(db.appealRules||[]).some(x=>x.id===id)){const a=removed();a.push(id);localStorage.setItem(RM,JSON.stringify(a))}}catch(e){}
+  return r}}catch(e){}
+ try{const oc=window.calculateAppealDeadlineV10;if(typeof oc==='function')window.calculateAppealDeadlineV10=async function(){
+  try{
+   const rule=(db.appealRules||[]).find(x=>x.id===document.getElementById('v10AppealRule')?.value);
+   const st=document.getElementById('v10AppealStart')?.value;
+   if(rule&&/^\d{4}-\d{2}-\d{2}$/.test(st||'')){
+    const p=st.split('-').map(Number);const dt=new Date(p[0],p[1]-1,p[2]+Number(rule.days||0)+Number(rule.distanceDays||0),12);const wd=dt.getDay();
+    if(wd===5||wd===6){const nm=wd===5?'الجمعة':'السبت';
+     if(!confirm('تنبيه: آخر يوم محسوب يقع يوم '+nm+'. قد يمتد الميعاد إلى أول يوم عمل بعده (م18 مرافعات)، لكن النظام سيحفظ التاريخ المحسوب الأبكر (الأحوط). لا تعتمد المد إلا بعد تأكيد المحامي. المتابعة؟'))return;}
+   }
+  }catch(e){}
+  return oc.apply(this,arguments)}}catch(e){}
+ window.mkAppealEnsurePresets=ensure;
+})();
