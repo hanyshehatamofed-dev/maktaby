@@ -52,12 +52,13 @@ window.MAKTABY_ASSET_URL = builtAsset;
 (function(){
   'use strict';
   const errorBox=document.getElementById('loginError');
-  const supabaseSources=['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2','https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'];
+  const SUPABASE_SRI='sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ';
+  const supabaseSources=['https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js','https://unpkg.com/@supabase/supabase-js@2.119.2/dist/umd/supabase.js'];
   const loaded=new Map();
-  function loadScript(src){
+  function loadScript(src,integrity){
     src=builtAsset(src);
     if(loaded.has(src)) return loaded.get(src);
-    const promise=new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=src;el.async=true;el.onload=()=>resolve(el);el.onerror=()=>{loaded.delete(src);reject(new Error('Failed to load '+src));};document.head.appendChild(el);});
+    const promise=new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=src;el.async=true;if(integrity){el.integrity=integrity;el.crossOrigin='anonymous';}el.onload=()=>resolve(el);el.onerror=()=>{loaded.delete(src);reject(new Error('Failed to load '+src));};document.head.appendChild(el);});
     loaded.set(src,promise); return promise;
   }
   function loadStyle(src){
@@ -68,7 +69,7 @@ window.MAKTABY_ASSET_URL = builtAsset;
   }
   function loadSupabase(i=0){
     if(i>=supabaseSources.length) return Promise.reject(new Error('Supabase unavailable'));
-    return loadScript(supabaseSources[i]).then(()=>{if(window.supabase&&typeof window.supabase.createClient==='function')return;throw new Error('Invalid Supabase bundle');}).catch(()=>loadSupabase(i+1));
+    return loadScript(supabaseSources[i],SUPABASE_SRI).then(()=>{if(window.supabase&&typeof window.supabase.createClient==='function')return;throw new Error('Invalid Supabase bundle');}).catch(()=>loadSupabase(i+1));
   }
   const lazyModules=new Set(['js/maktaby-case-timeline.js','js/maktaby-courtroom-mode.js','js/maktaby-voice-case-notes.js','js/maktaby-command-palette.js','js/maktaby-smart-autofill.js','js/maktaby-legal-calculator.js']);
   function optional(src,label){
