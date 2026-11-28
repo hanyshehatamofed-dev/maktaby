@@ -4088,3 +4088,86 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  window.mkTomorrowSessions=sessions;
  q();
 })();
+
+/* ===== Send tasks to staff on WhatsApp (wa.me, manual tap) (added Nov 28) ===== */
+;(function(){
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const nk=s=>String(s==null?'':s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/^(ا\.|ا\s)\s*/,'').replace(/\./g,' ').replace(/\s+/g,' ').trim();
+ const mgr=()=>{try{return canManageOffice()}catch(e){return false}};
+ const me=()=>{try{return currentUser}catch(e){return null}};
+ const done=s=>{try{return taskStatusIsCompletedV10(s)}catch(e){return ['تم التنفيذ','منتهي'].includes(s)}};
+ const day=()=>{try{return today()}catch(e){return new Date().toISOString().slice(0,10)}};
+ let staff=null,phones={},loadedFor=null,busy=false;
+ function normPhone(v){
+  let d=String(v||'').replace(/[٠-٩]/g,c=>'٠١٢٣٤٥٦٧٨٩'.indexOf(c)).replace(/[^0-9]/g,'');
+  if(!d)return '';
+  if(d.startsWith('00'))d=d.slice(2);
+  else if(/^01[0-9]{9}$/.test(d))d='20'+d.slice(1);
+  return /^[0-9]{10,15}$/.test(d)?'+'+d:'';
+ }
+ function tasksOf(p){
+  let all=[];try{all=tasks()}catch(e){all=db.tasks||[]}
+  return all.filter(t=>!done(t.status)&&((t.assigneeId&&t.assigneeId===p.id)||(nk(t.assignee)&&nk(t.assignee)!=='الاداري'&&nk(t.assignee)===nk(p.full_name))))
+   .sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+ }
+ function message(p,list){
+  const td=day();
+  const lines=list.slice(0,25).map((t,i)=>{
+   const late=t.date&&String(t.date).slice(0,10)<td;
+   const cl=(Array.isArray(t.clients)&&t.clients.length?t.clients.join('، '):t.client)||'';
+   return (i+1)+') '+(late?'⚠ متأخرة: ':'')+String(t.task||'').replace(/\s+/g,' ').trim().slice(0,140)+(cl?' | الموكل: '+String(cl).slice(0,60):'')+(t.date?' | الاستحقاق: '+String(t.date).slice(0,10):'');
+  });
+  return 'أهلا '+p.full_name+'،\nمهامك المفتوحة ('+list.length+') بتاريخ '+td+':\n\n'+lines.join('\n')+(list.length>25?'\n... و'+(list.length-25)+' مهمة أخرى في البرنامج':'')+'\n\nمكتب هاني شحاتة للمحاماة';
+ }
+ async function load(force){
+  if(busy)return;busy=true;
+  try{
+   const r=await sb.from('profiles').select('id,full_name,role,active');
+   if(!r.error&&Array.isArray(r.data))staff=r.data.filter(p=>p.active!==false&&p.full_name&&p.role!=='admin');
+   const c=await sb.from('staff_contacts').select('profile_id,phone');
+   phones={};if(!c.error&&Array.isArray(c.data))c.data.forEach(x=>phones[x.profile_id]=x.phone);
+   window.__mkWaTable=c.error?String(c.error.message||c.error):'ok';
+  }catch(e){}
+  busy=false;loadedFor=me()&&me().id;draw();
+ }
+ async function savePhone(p,raw){
+  const ph=normPhone(raw);
+  if(!raw.trim()){const r=await sb.from('staff_contacts').delete().eq('profile_id',p.id);if(r.error)throw r.error;delete phones[p.id];return}
+  if(!ph)throw new Error('رقم غير صحيح. اكتب رقم مصري مثل 01xxxxxxxxx أو بصيغة دولية.');
+  const r=await sb.from('staff_contacts').upsert({profile_id:p.id,phone:ph,updated_at:new Date().toISOString()},{onConflict:'profile_id'});
+  if(r.error)throw r.error;phones[p.id]=ph;
+ }
+ function draw(){
+  const box=document.getElementById('mkWa');if(!box)return;
+  const body=box.querySelector('[data-b]');if(!body)return;
+  if(!staff){body.innerHTML='<div style="padding:8px;color:#778">جارٍ التحميل...</div>';return}
+  if(window.__mkWaTable&&window.__mkWaTable!=='ok'){body.innerHTML='<div style="padding:8px;color:#a33">جدول أرقام الموظفين غير متاح: '+X(window.__mkWaTable)+'</div>';return}
+  body.innerHTML='<div style="font-size:12px;color:#667;margin-bottom:6px">الرقم محفوظ في جدول مقيّد (الإدارة فقط). الزر يفتح واتساب بالرسالة جاهزة وتضغط إرسال بنفسك، ولا يتم إرسال أي شيء تلقائيا.</div><div style="overflow:auto"><table class="table"><thead><tr><th>الموظف</th><th>مهام مفتوحة</th><th>الموبايل</th><th></th></tr></thead><tbody>'+staff.map(p=>{
+   const n=tasksOf(p).length;
+   return '<tr data-id="'+X(p.id)+'"><td><b>'+X(p.full_name)+'</b></td><td>'+n+'</td><td style="white-space:nowrap"><input dir="ltr" data-ph value="'+X(phones[p.id]||'')+'" placeholder="01xxxxxxxxx" style="width:150px;padding:5px;border:1px solid #cfd6df;border-radius:8px"> <button type="button" class="btn light" data-save>حفظ الرقم</button></td><td><button type="button" class="btn goldbtn" data-send '+((phones[p.id]&&n)?'':'disabled')+'>'+(phones[p.id]?(n?'📲 إرسال المهام واتساب':'لا مهام'):'أضف الرقم أولا')+'</button></td></tr>';
+  }).join('')+'</tbody></table></div>';
+  body.querySelectorAll('tr[data-id]').forEach(tr=>{
+   const p=staff.find(x=>x.id===tr.dataset.id);
+   tr.querySelector('[data-save]').onclick=async e=>{const b=e.target;b.disabled=true;try{await savePhone(p,tr.querySelector('[data-ph]').value);draw()}catch(err){alert('تعذر حفظ الرقم: '+(err.message||err));b.disabled=false}};
+   tr.querySelector('[data-send]').onclick=()=>{
+    const ph=phones[p.id];const list=tasksOf(p);if(!ph||!list.length)return;
+    const url='https://wa.me/'+ph.replace(/[^0-9]/g,'')+'?text='+encodeURIComponent(message(p,list));
+    window.open(url,'_blank','noopener');
+   };
+  });
+ }
+ function inject(){
+  const u=me();if(!u||!mgr()||typeof page==='undefined'||page!=='tasks')return;
+  const ws=document.querySelector('#app .task-workspace');if(!ws)return;
+  let box=document.getElementById('mkWa');
+  if(box&&ws.contains(box))return;
+  box=document.createElement('details');box.id='mkWa';box.className='panel';box.style.margin='10px 0';
+  box.innerHTML='<summary style="cursor:pointer;font-weight:700;font-size:15px">📲 إرسال المهام للموظفين على واتساب</summary><div data-b style="margin-top:8px"></div>';
+  box.addEventListener('toggle',()=>{if(box.open){if(!staff||loadedFor!==u.id)load();else draw()}});
+  const a=document.getElementById('mkMine')||ws.querySelector('.task-kpis');
+  if(a&&ws.contains(a))a.after(box);else ws.prepend(box);
+ }
+ const __r=render;render=function(){const r=__r.apply(this,arguments);try{inject()}catch(e){console.warn('mk wa',e)}return r};
+ try{let q=null;new MutationObserver(()=>{if(q)return;q=setTimeout(()=>{q=null;try{inject()}catch(e){}},150)}).observe(document.body,{childList:true,subtree:true})}catch(_){}
+ window.mkWaMessage=message;window.mkWaNormPhone=normPhone;
+})();
