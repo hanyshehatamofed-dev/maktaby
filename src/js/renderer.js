@@ -3918,7 +3918,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
 /* ===== Client timeline (internal, added Nov 27) ===== */
 ;(function(){
  const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const nk=s=>String(s==null?'':s).replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();
+ const nk=s=>(x=>x==='هاني'?'hany shehata':x)(String(s==null?'':s).replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim());
  const D=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s||''));return m?m[0]:''};
  const short=(s,n)=>{s=String(s==null?'':s).replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n)+'…':s};
  const TYPES={manual:['يدوية','✍'],case:['قضايا','⚖'],session:['جلسات','📅'],ann:['إعلانات','📨'],task:['مهام','✔'],poa:['توكيلات','📜'],doc:['مستندات','📎']};
@@ -4092,7 +4092,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
 /* ===== My tasks corner + assignee picker (added Nov 28) ===== */
 ;(function(){
  const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const nk=s=>String(s==null?'':s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/^(ا\.|ا\s)\s*/,'').replace(/\./g,' ').replace(/\s+/g,' ').trim();
+ const nk=s=>(x=>x==='هاني'?'hany shehata':x)(String(s==null?'':s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/^(ا\.|ا\s)\s*/,'').replace(/\./g,' ').replace(/\s+/g,' ').trim());
  const me=()=>{try{return currentUser}catch(e){return null}};
  const mgr=()=>{try{return canManageOffice()}catch(e){return false}};
  const done=s=>{try{return taskStatusIsCompletedV10(s)}catch(e){return ['تم التنفيذ','منتهي'].includes(s)}};
@@ -4159,7 +4159,7 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
 /* ===== Send tasks to staff on WhatsApp (wa.me, manual tap) (added Nov 28) ===== */
 ;(function(){
  const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const nk=s=>String(s==null?'':s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/^(ا\.|ا\s)\s*/,'').replace(/\./g,' ').replace(/\s+/g,' ').trim();
+ const nk=s=>(x=>x==='هاني'?'hany shehata':x)(String(s==null?'':s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/^(ا\.|ا\s)\s*/,'').replace(/\./g,' ').replace(/\s+/g,' ').trim());
  const mgr=()=>{try{return canManageOffice()}catch(e){return false}};
  const me=()=>{try{return currentUser}catch(e){return null}};
  const done=s=>{try{return taskStatusIsCompletedV10(s)}catch(e){return ['تم التنفيذ','منتهي'].includes(s)}};
