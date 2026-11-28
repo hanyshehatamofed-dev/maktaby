@@ -4088,3 +4088,71 @@ if(typeof checks!=='undefined')for(const c of checks)console.log(' - '+c);
  window.mkTomorrowSessions=sessions;
  q();
 })();
+
+/* ===== My tasks corner + assignee picker (added Nov 28) ===== */
+;(function(){
+ const X=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const nk=s=>String(s==null?'':s).toLowerCase().replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/^(ا\.|ا\s)\s*/,'').replace(/\./g,' ').replace(/\s+/g,' ').trim();
+ const me=()=>{try{return currentUser}catch(e){return null}};
+ const mgr=()=>{try{return canManageOffice()}catch(e){return false}};
+ const done=s=>{try{return taskStatusIsCompletedV10(s)}catch(e){return ['تم التنفيذ','منتهي'].includes(s)}};
+ let staff=null,pending=null;
+ function loadStaff(){
+  if(staff)return Promise.resolve(staff);
+  if(!pending)pending=(async()=>{try{const r=await sb.from('profiles').select('id,full_name,role,active');if(!r.error&&Array.isArray(r.data))staff=r.data.filter(p=>p.active!==false&&p.full_name)}catch(e){}pending=null;return staff})();
+  return pending;
+ }
+ function isMine(t){
+  const u=me();if(!u)return false;
+  if(t.assigneeId&&u.id&&t.assigneeId===u.id)return true;
+  const a=nk(t.assignee);if(!a)return false;
+  if(a==='الاداري')return false;
+  return a===nk(u.name);
+ }
+ const unassigned=t=>{const a=nk(t.assignee);return !a||a==='الاداري'};
+ function row(t){return `<tr><td>${X(String(t.date||'—').slice(0,10))}</td><td><b>${X(t.task||'—')}</b></td><td>${X((Array.isArray(t.clients)&&t.clients.length?t.clients.join('، '):t.client)||'—')}</td><td>${X(t.court||'—')}</td><td>${X(t.status||'—')}</td></tr>`}
+ const TH='<thead><tr><th>الاستحقاق</th><th>المهمة</th><th>الموكل</th><th>المحكمة</th><th>الحالة</th></tr></thead>';
+ function panel(){
+  let all=[];try{all=tasks()}catch(e){all=(db.tasks||[])}
+  const mine=all.filter(t=>!done(t.status)&&isMine(t));
+  const un=mgr()?all.filter(t=>!done(t.status)&&unassigned(t)):[];
+  const d=document.createElement('details');d.id='mkMine';d.className='panel';d.open=true;d.style.margin='10px 0';
+  const late=mine.filter(t=>t.date&&String(t.date).slice(0,10)<(typeof today==='function'?today():'9999')).length;
+  d.innerHTML=`<summary style="cursor:pointer;font-weight:700;font-size:15px">📌 مهامي <span style="background:#14283f;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px;margin-inline-start:6px">${mine.length}</span>${late?`<span style="background:#ffe9e6;color:#a33;border-radius:10px;padding:1px 8px;font-size:12px;margin-inline-start:6px">${late} متأخرة</span>`:''}</summary><div style="margin-top:8px;overflow:auto">${mine.length?`<table class="table">${TH}<tbody>${mine.slice().sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999'))).map(row).join('')}</tbody></table>`:'<div style="padding:8px;color:#778">لا توجد مهام مسندة لك حاليا.</div>'}${mgr()?`<details style="margin-top:10px"><summary style="cursor:pointer;color:#8a6a1f">بدون مسؤول / مهام الإداري (${un.length}) · للإدارة فقط</summary><div style="overflow:auto">${un.length?`<table class="table">${TH}<tbody>${un.slice(0,100).map(row).join('')}</tbody></table>`:'<div style="padding:8px;color:#778">لا يوجد.</div>'}</div></details>`:''}</div>`;
+  return d;
+ }
+ function inject(){
+  const u=me();if(!u||typeof page==='undefined'||page!=='tasks')return;
+  const ws=document.querySelector('#app .task-workspace');if(!ws)return;
+  const sig=(()=>{try{return String(tasks().length)}catch(e){return ''}})();
+  const ex=document.getElementById('mkMine');
+  if(ex&&ex.dataset.sig===sig&&ws.contains(ex))return;
+  if(ex)ex.remove();
+  const p=panel();p.dataset.sig=sig;
+  const anchor=ws.querySelector('.task-kpis');if(anchor)anchor.before(p);else ws.prepend(p);
+ }
+ function picker(){
+  const f=document.querySelector('#modal.show #form');if(!f)return;
+  const inp=f.querySelector('input[name="assignee"]');if(!inp||inp.dataset.mkPick)return;
+  if(!staff){loadStaff().then(()=>{setTimeout(picker,50)});return}
+  if(!staff.length)return;
+  inp.dataset.mkPick='1';
+  const cur=String(inp.value||'').trim();
+  const sel=document.createElement('select');sel.className=inp.className;sel.style.cssText=inp.style.cssText;sel.setAttribute('aria-label','المسؤول');
+  const hid=f.querySelector('input[name="assigneeId"]')||document.createElement('input');hid.type='hidden';hid.name='assigneeId';if(!hid.parentNode)inp.after(hid);
+  const names=staff.map(p=>p.full_name);
+  const match=staff.find(p=>nk(p.full_name)===nk(cur));
+  sel.innerHTML='<option value="">— بدون مسؤول —</option>'+staff.map(p=>`<option value="${X(p.id)}">${X(p.full_name)}</option>`).join('')+((cur&&!match)?`<option value="__old">${X(cur)} (اسم قديم)</option>`:'');
+  const sync=()=>{
+   if(sel.value==='__old'){inp.value=cur;hid.value=''}
+   else{const p=staff.find(x=>x.id===sel.value);inp.value=p?p.full_name:'';hid.value=p?p.id:''}
+  };
+  sel.value=match?match.id:(cur?'__old':'');
+  sel.onchange=sync;sync();
+  inp.type='hidden';inp.after(sel);
+ }
+ const __r=render;render=function(){const r=__r.apply(this,arguments);try{inject()}catch(e){console.warn('mk mine',e)}return r};
+ try{let q=null;new MutationObserver(()=>{if(q)return;q=setTimeout(()=>{q=null;try{inject();picker()}catch(e){}},120)}).observe(document.body,{childList:true,subtree:true})}catch(_){}
+ loadStaff();
+ window.mkMyTasksMatch=isMine;
+})();
