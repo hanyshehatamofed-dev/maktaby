@@ -103,7 +103,7 @@ window.MAKTABY_ASSET_URL = builtAsset;
     });
   };
   function startCore(){
-    return loadScript('js/maktaby-store.js').then(()=>loadScript('js/maktaby-task-archive.js')).then(()=>loadScript('js/weekly-overview.js')).then(()=>loadScript('js/renderer.js')).then(()=>{
+    return loadScript('js/maktaby-store.js').then(()=>loadScript('js/maktaby-task-archive.js')).then(()=>loadScript('js/weekly-overview.js')).then(()=>loadScript('js/renderer.js')).then(()=>loadScript('js/maktaby-office-extras.js').catch(e=>{console.warn('MAKTABY office extras unavailable:',e);})).then(()=>{
       // Large business features are separate classic-script bundles and are fetched only on first navigation.
       const featurePromises=new Map();
       function loadFeature(key,src,label){

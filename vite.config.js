@@ -152,6 +152,7 @@ throw new Error(
         if (
           /^renderer-[^/]+\.js$/.test(name) ||
           /^maktaby-(?:store|offline-sync|task-archive|weekly-overview)-[^/]+\.js$/.test(name) ||
+          /^maktaby-office-extras-[^/]+\.js$/.test(name) ||
           /^maktaby-approved-logo\.[^/]+\.(png|webp|svg)$/.test(name) ||
           /^dashboard-hero-reference-[^/]+\.webp$/.test(name)
         ) {
